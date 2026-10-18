@@ -7,7 +7,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
 .wheel-wrap{position:relative}
@@ -748,8 +747,8 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
  <div class="max-w-sm mx-auto pt-8 space-y-3">
   <h1 class="text-2xl font-bold text-white text-center">Bonus Book</h1>
   <div class="ios-card border border-zinc-800 p-4 space-y-2 text-xs">
-   <input id="ku" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="Supabase URL" autocomplete="off">
-   <input id="kk" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="Anon Key" autocomplete="off">
+   <input id="ku" type="hidden" value="https://hlssypwqvvveuilhdsto.supabase.co">
+   <input id="kk" type="hidden" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc3N5cHdxdnZ2ZXVpbGhkc3RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzMDA5OTEsImV4cCI6MjEwNzg3Njk5MX0.9xo2KE3cu82J-CjlD4DHHnseJHkldMQlgNERZZcmGw8">
    <input id="ke" type="email" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="Owner Email">
    <input id="kp" type="password" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="Password (၆ လုံးအထက်)" onkeydown="if(event.key==='Enter')kConnect()">
    <label class="flex gap-2 text-zinc-300"><input id="kn" type="checkbox"> Owner အကောင့်အသစ် ဖွင့်မည် (ပထမဆုံးအကြိမ်)</label>
@@ -762,13 +761,29 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
    <textarea id="ksql" readonly rows="6" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-[10px] font-mono text-white"></textarea>
    <button type="button" class="w-full py-2 border border-zinc-700 rounded-lg text-blue-400" onclick="navigator.clipboard.writeText($('ksql').value);toast('ကူးပြီးပါပြီ')">SQL ကူးမည်</button>
   </div>
-  <button type="button" class="w-full py-3 bg-zinc-800 rounded-xl font-bold text-white text-xs" onclick="kScanOpen()">📷 ဝန်ထမ်း — Scan QR to Login</button>
+  <button type="button" class="w-full py-3 bg-emerald-700 rounded-xl font-bold text-white text-xs" onclick="kRegOpen()">🆕 ဝန်ထမ်းအသစ် — Register / Get ID</button>
  </div>
 </div>
-<div id="kscan" style="position:fixed;inset:0;z-index:320;background:#000;padding:16px" hidden>
- <div class="max-w-sm mx-auto pt-8 space-y-3"><h2 class="text-xl font-bold text-white">Scan Admin QR to Login</h2>
-  <div id="kreader" class="rounded-xl overflow-hidden bg-zinc-900"></div><div id="kscanerr" class="text-red-400 text-xs"></div>
-  <button type="button" class="w-full py-3 border border-zinc-700 rounded-xl text-white" onclick="kScanClose()">နောက်သို့</button></div>
+<div id="kreg" style="position:fixed;inset:0;z-index:330;background:#000;overflow:auto;padding:16px" hidden>
+ <div class="max-w-sm mx-auto pt-8 space-y-3">
+  <h2 class="text-xl font-bold text-white">ဝန်ထမ်းအသစ် မှတ်ပုံတင်ရန်</h2>
+  <div id="kreg-form" class="ios-card border border-zinc-800 p-4 space-y-2 text-xs">
+   <input id="kr-name" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="အမည်" autocomplete="off">
+   <label class="block text-[10px] text-zinc-400">အလုပ်စဝင်သည့်နေ့</label><input id="kr-join" type="date" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white">
+   <label class="block text-[10px] text-zinc-400">မွေးနေ့</label><input id="kr-birth" type="date" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white">
+   <input id="kr-phone" type="tel" inputmode="tel" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="ဖုန်းနံပါတ်" autocomplete="off">
+   <input id="kr-role" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="တာဝန် (ဥပမာ - Designer)" autocomplete="off">
+   <div id="kr-err" class="text-red-400" hidden></div>
+   <button type="button" id="kr-go" class="w-full py-3 bg-emerald-600 rounded-xl font-bold text-white" onclick="kRegSubmit()">Get ID</button>
+  </div>
+  <div id="kreg-wait" class="ios-card border border-zinc-800 p-4 space-y-2 text-xs text-center" hidden>
+   <div id="kw-icon" style="font-size:40px">⏳</div>
+   <div id="kw-msg" class="text-zinc-200 text-sm"></div>
+   <div id="kw-code" class="text-[10px] text-zinc-500"></div>
+   <button type="button" id="kw-cancel" class="w-full py-2 border border-zinc-700 rounded-lg text-zinc-300" onclick="kRegCancel()">ပယ်ဖျက်မည်</button>
+  </div>
+  <button type="button" class="w-full py-3 border border-zinc-700 rounded-xl text-white" onclick="kRegClose()">နောက်သို့</button>
+ </div>
 </div>
 <button type="button" id="kfab" hidden style="position:fixed;right:14px;bottom:84px;z-index:150;width:48px;height:48px;border-radius:50%;background:#1d4ed8;color:#fff;font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.5)" onclick="kChatOpen()">💬<span id="kdot" hidden style="position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#ef4444"></span></button>
 <div id="kchat" style="position:fixed;inset:0;z-index:250;background:#09090b;display:flex;flex-direction:column" hidden>
@@ -1586,7 +1601,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
     e.hist[CUR] = { basic: basic, bonus: 0 };
     state.employees.push(e); pairId = e.id;
     $('new-staff-name').value = ''; $('new-staff-role').value = ''; $('new-staff-hire').value = ''; $('new-staff-birth').value = '';
-    persist(); refresh(); toast(name + ' ကို ထည့်ပြီးပါပြီ၊ Settings တွင် QR ထုတ်နိုင်ပါပြီ');
+    persist(); refresh(); toast(name + ' ကို ထည့်ပြီးပါပြီ');
   }
   function addTask() {
     var name = $('new-task-name').value.trim();
@@ -2464,6 +2479,55 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
   refresh();
   /* ===== Supabase Auth + realtime chat layer ===== */
   var KDOM = 'kpi-staff.com', kcfg = null, kauth = null, kdemo = false, ksb = null, kchan = null, kmsgs = [], kunread = 0, kseen = {};
+  var KREQSQL = `create table if not exists staff_requests(
+  id uuid primary key default gen_random_uuid(),
+  token text not null,
+  name text not null,
+  join_date date,
+  birth date,
+  phone text,
+  role text,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  staff_no text,
+  emp_id text,
+  email text,
+  pass text,
+  created_at timestamptz default now()
+);
+alter table staff_requests enable row level security;
+revoke all on staff_requests from anon;
+grant select,update,delete on staff_requests to authenticated;
+drop policy if exists owner_only on staff_requests;
+create policy owner_only on staff_requests for all to authenticated using(is_owner()) with check(is_owner());
+
+create or replace function submit_staff_request(p_token text,p_name text,p_join date,p_birth date,p_phone text,p_role text)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare v uuid;
+begin
+  if length(coalesce(p_token,''))<16 or length(trim(coalesce(p_name,'')))<1 or length(p_name)>80
+     or length(coalesce(p_phone,''))>30 or length(coalesce(p_role,''))>60 then
+    raise exception 'invalid request';
+  end if;
+  insert into staff_requests(token,name,join_date,birth,phone,role)
+  values(p_token,trim(p_name),p_join,p_birth,trim(p_phone),trim(p_role)) returning id into v;
+  return v;
+end $$;
+
+create or replace function check_staff_request(p_id uuid,p_token text)
+returns json language sql security definer set search_path=public as $$
+  select json_build_object('status',status,'staff_no',staff_no,'emp_id',emp_id,'email',email,'pass',pass)
+  from staff_requests where id=p_id and token=p_token $$;
+
+create or replace function ack_staff_request(p_id uuid,p_token text)
+returns void language sql security definer set search_path=public as $$
+  update staff_requests set email=null,pass=null where id=p_id and token=p_token and status='approved' $$;
+
+revoke all on function submit_staff_request(text,text,date,date,text,text) from public;
+revoke all on function check_staff_request(uuid,text) from public;
+revoke all on function ack_staff_request(uuid,text) from public;
+grant execute on function submit_staff_request(text,text,date,date,text,text) to anon,authenticated;
+grant execute on function check_staff_request(uuid,text) to anon,authenticated;
+grant execute on function ack_staff_request(uuid,text) to anon,authenticated;`;
   var CKSQL = `create table if not exists checkins(id uuid primary key default gen_random_uuid(),emp_id text not null,name text,day date not null,time text,dist numeric,acc numeric,created_at timestamptz default now(),unique(emp_id,day));
 alter table checkins enable row level security;
 revoke all on checkins from anon;
@@ -2510,6 +2574,7 @@ create policy owner_only on staff_logins for all to authenticated using(is_owner
 do $$ begin alter publication supabase_realtime add table messages; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table app_state; exception when duplicate_object then null; end $$;
 ${CKSQL}
+${KREQSQL}
 notify pgrst, 'reload schema';`;
   var KMISS = ['PGRST205', '42P01', '42703', 'PGRST204'];
   function kget(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
@@ -2584,7 +2649,7 @@ notify pgrst, 'reload schema';`;
       var j; try { j = await kAuth('token?grant_type=password', { email: em, password: pw }); }
       catch (e) { if (!$('kn').checked) throw e; j = await kAuth('signup', { email: em, password: pw }); if (!j.access_token) throw new Error('Email confirmation ကို ပိတ်ပါ'); }
       kauth = kMk(j, 'owner', { name: em.split('@')[0] });
-      var chk = ['app_state?select=id', 'staff_logins?select=emp_id', 'messages?select=id', 'kpi_records?select=staff_name,points,record_date', 'monthly_winners?select=staff_name,total_score,month_year', 'owners?select=user_id', 'checkins?select=id'];
+      var chk = ['app_state?select=id', 'staff_logins?select=emp_id', 'messages?select=id', 'kpi_records?select=staff_name,points,record_date', 'monthly_winners?select=staff_name,total_score,month_year', 'owners?select=user_id', 'checkins?select=id', 'staff_requests?select=id'];
       for (var i = 0; i < chk.length; i++) { try { await kapi(chk[i] + '&limit=1'); } catch (e) { if (KMISS.indexOf(e.code) >= 0 || e.status === 404) { $('ksql').value = KSQL; $('ksqlbox').hidden = false; kauth = null; return kErr('Table မပြည့်စုံသေးပါ — SQL ကို Run ပြီး ပြန်နှိပ်ပါ'); } throw e; } }
       var o = await kapi('owners?select=user_id');
       if (!o.length) { try { await kapi('owners', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: kauth.uid }) }); } catch (e) { throw new Error('ဤအကောင့်သည် Owner မဟုတ်ပါ'); } }
@@ -2928,6 +2993,106 @@ notify pgrst, 'reload schema';`;
     shop.className = 'space-y-3 text-xs border-t border-zinc-800 pt-3'; prof.appendChild(shop);
     var sc = $('tab-content-settings'); sc.insertBefore(prof, sc.firstChild);
   })();
+
+  /* ===== Staff self-registration + owner approval (staff_requests, see staff-registration.sql) ===== */
+  var KDEF = { url: 'https://hlssypwqvvveuilhdsto.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc3N5cHdxdnZ2ZXVpbGhkc3RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzMDA5OTEsImV4cCI6MjEwNzg3Njk5MX0.9xo2KE3cu82J-CjlD4DHHnseJHkldMQlgNERZZcmGw8' };
+  var kregTm = null, kreqCount = 0;
+  $('ku').value = KDEF.url; $('kk').value = KDEF.key;
+  function kRegCfg() { return { url: KDEF.url, key: KDEF.key }; }
+  async function kRpc(cfg, fn, body) {
+    var r = await fetch(cfg.url + '/rest/v1/rpc/' + fn, { method: 'POST', headers: { apikey: cfg.key, Authorization: 'Bearer ' + cfg.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var t = await r.text(), j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {}
+    if (!r.ok) { var er = new Error((j && (j.message || j.hint)) || 'Error ' + r.status); er.code = j && j.code; throw er; }
+    return j;
+  }
+  function kRegErr(m) { var e = $('kr-err'); e.textContent = m || ''; e.hidden = !m; }
+  function kRegShow(mode) { $('kreg-form').hidden = mode !== 'form'; $('kreg-wait').hidden = mode === 'form'; }
+  function kRegOpen() {
+    $('kreg').hidden = false; var q = kget('kpi_req');
+    if (q) { kRegWait(q); } else { kRegShow('form'); kRegErr(''); }
+  }
+  function kRegClose() { $('kreg').hidden = true; if (kregTm) { clearInterval(kregTm); kregTm = null; } }
+  function kRegCancel() { localStorage.removeItem('kpi_req'); kRegClose(); kRegShow('form'); }
+  async function kRegSubmit() {
+    var name = $('kr-name').value.trim(), join = $('kr-join').value, birth = $('kr-birth').value, phone = $('kr-phone').value.trim(), role = $('kr-role').value.trim();
+    kRegErr('');
+    if (!name) return kRegErr('အမည် ထည့်ပါ');
+    if (!join) return kRegErr('အလုပ်စဝင်သည့်နေ့ ထည့်ပါ');
+    if (!birth) return kRegErr('မွေးနေ့ ထည့်ပါ');
+    if (!/^[0-9+\-\s]{6,20}$/.test(phone)) return kRegErr('ဖုန်းနံပါတ် မှန်အောင် ထည့်ပါ');
+    if (!role) return kRegErr('တာဝန် ထည့်ပါ');
+    var cfg = kRegCfg(), token = krand(24), btn = $('kr-go'); btn.disabled = true;
+    try {
+      var id = await kRpc(cfg, 'submit_staff_request', { p_token: token, p_name: name, p_join: join, p_birth: birth, p_phone: phone, p_role: role });
+      var q = { id: id, token: token, url: cfg.url, key: cfg.key, name: name }; kset('kpi_req', q); kRegWait(q);
+    } catch (e) {
+      kRegErr(KMISS.indexOf(e.code) >= 0 || /submit_staff_request/.test(e.message) ? 'Database မပြင်ဆင်ရသေးပါ — Admin က staff-registration.sql ကို Run ရန်လိုသည်' : 'ပို့၍မရပါ: ' + e.message);
+    } finally { btn.disabled = false; }
+  }
+  function kRegWait(q) {
+    kRegShow('wait'); $('kw-icon').textContent = '⏳'; $('kw-msg').textContent = q.name + ' — Admin ၏ ခွင့်ပြုချက်ကို စောင့်နေပါသည်…'; $('kw-code').textContent = 'Request: ' + String(q.id).slice(0, 8);
+    $('kw-cancel').hidden = false;
+    if (kregTm) clearInterval(kregTm);
+    var go = function () { kRegPoll(q); }; go(); kregTm = setInterval(go, 4000);
+  }
+  async function kRegPoll(q) {
+    var cfg = { url: q.url, key: q.key }, r;
+    try { r = await kRpc(cfg, 'check_staff_request', { p_id: q.id, p_token: q.token }); } catch (e) { return; } /* offline: keep waiting */
+    if (!r) { localStorage.removeItem('kpi_req'); kRegClose(); kRegShow('form'); return; }
+    if (r.status === 'rejected') { clearInterval(kregTm); kregTm = null; localStorage.removeItem('kpi_req'); $('kw-icon').textContent = '❌'; $('kw-msg').textContent = 'Admin က ငြင်းပယ်လိုက်ပါသည်'; $('kw-code').textContent = ''; return; }
+    if (r.status !== 'approved' || !r.email || !r.pass) return;
+    clearInterval(kregTm); kregTm = null; $('kw-icon').textContent = '✅'; $('kw-msg').textContent = 'ခွင့်ပြုပြီးပါပြီ! ID: ' + (r.staff_no || '') + ' — ဝင်နေပါသည်…'; $('kw-cancel').hidden = true;
+    try {
+      kcfg = cfg; var j = await kAuth('token?grant_type=password', { email: r.email, password: r.pass });
+      kauth = kMk(j, 'staff', { emp: r.emp_id }); kset('kpi_cfg', kcfg); kset('kpi_auth', kauth);
+      try { await kRpc(cfg, 'ack_staff_request', { p_id: q.id, p_token: q.token }); } catch (e) {}
+      localStorage.removeItem('kpi_req'); $('kreg').hidden = true; await kEnter(); toast('သင့် Staff ID: ' + (r.staff_no || ''));
+    } catch (e) { kauth = null; $('kw-icon').textContent = '⚠️'; $('kw-msg').textContent = 'Login မအောင်မြင်ပါ: ' + (e.message || e); $('kw-cancel').hidden = false; }
+  }
+  /* owner side: pending list inside Settings */
+  (function () {
+    var host = $('pair-box').parentNode, d = document.createElement('div'); d.id = 'req-box'; d.className = 'space-y-2 text-xs'; d.hidden = true;
+    d.innerHTML = '<div class="font-bold text-zinc-300">🆕 ဝန်ထမ်းအသစ် တောင်းဆိုမှုများ <span id="req-n" class="text-amber-400"></span></div><div id="req-list" class="space-y-2"></div>';
+    host.insertBefore(d, $('pair-box'));
+  })();
+  function kReqNextNo() { var m = 0; state.employees.forEach(function (e) { var n = parseInt(String(e.sno || '').replace(/\D/g, ''), 10); if (n > m) m = n; }); return 'S' + ('00' + (m + 1)).slice(-3); }
+  async function kReqLoad(quiet) {
+    var on = !!kauth && !kdemo && kauth.role === 'owner'; $('req-box').hidden = !on; if (!on) return;
+    try {
+      var rows = await kapi('staff_requests?status=eq.pending&order=created_at.asc&select=*'); rows = rows || [];
+      if (rows.length > kreqCount && quiet) toast('🆕 ဝန်ထမ်းအသစ် တောင်းဆိုမှု ' + rows.length + ' ခု ရှိသည်'); kreqCount = rows.length;
+      $('req-n').textContent = rows.length ? '(' + rows.length + ')' : '';
+      $('req-list').innerHTML = rows.length ? rows.map(function (r) {
+        return '<div class="ios-card border border-zinc-800 p-3 space-y-1"><div class="text-white font-bold">' + esc(r.name) + ' <span class="text-zinc-400 font-normal">· ' + esc(r.role || '') + '</span></div>' +
+          '<div class="text-zinc-400">📞 ' + esc(r.phone || '-') + ' · ဝင်ရက် ' + esc(r.join_date || '-') + ' · 🎂 ' + esc(r.birth || '-') + '</div>' +
+          '<input id="rb-' + r.id + '" type="number" inputmode="numeric" value="350000" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white" placeholder="Basic Salary">' +
+          '<div class="grid grid-cols-2 gap-2"><button type="button" class="py-2 bg-emerald-600 rounded-lg font-bold text-white" onclick="kReqApprove(\'' + r.id + '\')">✓ Approve</button><button type="button" class="py-2 bg-zinc-800 rounded-lg text-red-400" onclick="kReqReject(\'' + r.id + '\')">✕ Reject</button></div></div>';
+      }).join('') : '<div class="text-zinc-500">စောင့်ဆိုင်းနေသော တောင်းဆိုမှု မရှိပါ</div>';
+    } catch (e) { $('req-list').innerHTML = '<div class="text-zinc-500">' + (KMISS.indexOf(e.code) >= 0 || e.status === 404 ? 'staff-registration.sql ကို Supabase မှာ Run ပါ' : 'ဖတ်၍မရပါ') + '</div>'; }
+  }
+  async function kReqApprove(id) {
+    try {
+      var r = (await kapi('staff_requests?id=eq.' + id + '&status=eq.pending&select=*'))[0]; if (!r) return kReqLoad();
+      var basic = parseInt($('rb-' + id).value, 10); if (isNaN(basic) || basic < 0) return toast('Basic Salary မှန်ကန်စွာ ထည့်ပါ');
+      var e = state.employees.filter(function (x) { return x.reqId === id; })[0];
+      if (!e) {
+        e = mkEmp(state.employees.length, 'e' + Date.now(), r.name, r.role || 'ဝန်ထမ်း', Array.from(r.name)[0], [50, 50, 50, [10, 10, 10, 10, 10]]);
+        e.basic = basic; e.hire = r.join_date || ''; e.birth = r.birth || ''; e.phone = r.phone || ''; e.sno = kReqNextNo(); e.reqId = id; e.hist[CUR] = { basic: basic, bonus: 0 };
+        state.employees.push(e); persist(); refresh();
+      }
+      var ok = await new Promise(function (res) { pushNow(res); }); if (!ok) return toast('Data သိမ်း၍မရ — ပြန်ကြိုးစားပါ');
+      var c = await kStaffCred(e.id);
+      await kapi('staff_requests?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'approved', staff_no: e.sno, emp_id: e.id, email: c.email, pass: c.pass }) });
+      toast('✓ ' + r.name + ' ကို ခွင့်ပြုပြီး ID ' + e.sno + ' ပို့လိုက်ပါပြီ'); kReqLoad();
+    } catch (er) { toast('မအောင်မြင်ပါ: ' + (er.message || er.code || er)); }
+  }
+  async function kReqReject(id) {
+    if (!confirm('ငြင်းပယ်မည်လား?')) return;
+    try { await kapi('staff_requests?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'rejected' }) }); kReqLoad(); } catch (er) { toast('မအောင်မြင်ပါ'); }
+  }
+  renderPair = function () { $('pair-box').hidden = true; var on = !!kauth && !kdemo && kauth.role === 'owner', st = $('gs-status'); st.hidden = !on; st.textContent = on ? 'Supabase ချိတ်ဆက်ပြီးပါပြီ' : ''; kReqLoad(); };
+  setInterval(function () { if (kauth && !kdemo && kauth.role === 'owner' && !document.hidden) kReqLoad(true); }, 20000);
+  if (!kauth && kget('kpi_req')) { $('kreg').hidden = false; kRegWait(kget('kpi_req')); }
 </script>
 
 </body></html>
