@@ -3051,9 +3051,10 @@ notify pgrst, 'reload schema';`;
   }
   /* owner side: pending list inside Settings */
   (function () {
-    var host = $('pair-box').parentNode, d = document.createElement('div'); d.id = 'req-box'; d.className = 'space-y-2 text-xs'; d.hidden = true;
+    var d = document.createElement('div'); d.id = 'req-box'; d.className = 'ios-card p-4 border border-zinc-800 space-y-2 text-xs'; d.hidden = true;
     d.innerHTML = '<div class="font-bold text-zinc-300">🆕 ဝန်ထမ်းအသစ် တောင်းဆိုမှုများ <span id="req-n" class="text-amber-400"></span></div><div id="req-list" class="space-y-2"></div>';
-    host.insertBefore(d, $('pair-box'));
+    var sc = $('tab-content-settings'); sc.insertBefore(d, sc.firstChild);
+    var qc = $('gs-card'); if (qc) qc.style.display = 'none'; /* old "ဝန်ထမ်း QR Login" card is no longer used */
   })();
   function kReqNextNo() { var m = 0; state.employees.forEach(function (e) { var n = parseInt(String(e.sno || '').replace(/\D/g, ''), 10); if (n > m) m = n; }); return 'S' + ('00' + (m + 1)).slice(-3); }
   async function kReqLoad(quiet) {
