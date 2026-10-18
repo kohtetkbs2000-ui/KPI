@@ -1,0 +1,9 @@
+{
+  "appId": "com.kpi.bonusbook",
+  "appName": "Bonus Book",
+  "webDir": "www",
+  "server": {
+    "url": "https://kohtetkbs2000-ui.github.io/KPI/",
+    "cleartext": false
+  }
+}
