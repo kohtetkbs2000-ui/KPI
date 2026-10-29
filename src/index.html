@@ -762,6 +762,8 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
    <button type="button" class="w-full py-2 border border-zinc-700 rounded-lg text-blue-400" onclick="navigator.clipboard.writeText($('ksql').value);toast('ကူးပြီးပါပြီ')">SQL ကူးမည်</button>
   </div>
   <button type="button" class="w-full py-3 bg-emerald-700 rounded-xl font-bold text-white text-xs" onclick="kRegOpen()">🆕 ဝန်ထမ်းအသစ် — Register / Get ID</button>
+  <div class="grid grid-cols-2 gap-2"><button type="button" class="py-3 border border-zinc-600 rounded-xl font-bold text-zinc-200 text-xs" onclick="kDemoGo('owner')">👀 Demo — Owner</button><button type="button" class="py-3 border border-zinc-600 rounded-xl font-bold text-zinc-200 text-xs" onclick="kDemoGo('staff')">👀 Demo — Staff</button></div>
+  <div class="text-[10px] text-zinc-500 text-center">Demo က Password မလိုပါ၊ ဥပမာ data နဲ့ ဒီဖုန်းထဲမှာပဲ စမ်းနိုင်ပါတယ်။</div>
  </div>
 </div>
 <div id="kreg" style="position:fixed;inset:0;z-index:330;background:#000;overflow:auto;padding:16px" hidden>
@@ -780,6 +782,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
    <div id="kw-icon" style="font-size:40px">⏳</div>
    <div id="kw-msg" class="text-zinc-200 text-sm"></div>
    <div id="kw-code" class="text-[10px] text-zinc-500"></div>
+   <button type="button" id="kw-retry" class="w-full py-2 bg-blue-600 rounded-lg font-bold text-white" onclick="kRegRetry()" hidden>ပြန်ကြိုးစားမည်</button>
    <button type="button" id="kw-cancel" class="w-full py-2 border border-zinc-700 rounded-lg text-zinc-300" onclick="kRegCancel()">ပယ်ဖျက်မည်</button>
   </div>
   <button type="button" class="w-full py-3 border border-zinc-700 rounded-xl text-white" onclick="kRegClose()">နောက်သို့</button>
@@ -792,7 +795,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
  <div class="flex gap-2 p-3 border-t border-zinc-800"><input id="kin" maxlength="1000" class="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl p-2 text-white text-sm" placeholder="စာရိုက်ပါ..." onkeydown="if(event.key==='Enter')kSend()"><button type="button" class="px-4 bg-blue-600 rounded-xl text-white font-bold text-sm" onclick="kSend()">ပို့မည်</button></div>
 </div>
 <script>
-  var KEY = 'bonusbook-v3';
+  var KEY = /^#demo/.test(location.hash) ? 'bonusbook-demo' : 'bonusbook-v3';
   var CUR = '2026-10';
   var MN = ['ဇန်နဝါရီ','ဖေဖော်ဝါရီ','မတ်','ဧပြီ','မေ','ဇွန်','ဇူလိုင်','ဩဂုတ်','စက်တင်ဘာ','အောက်တိုဘာ','နိုဝင်ဘာ','ဒီဇင်ဘာ'];
   var MONTHS = ['2025-11', '2025-12'];
@@ -1177,7 +1180,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
   function payload() {
     var c = JSON.parse(JSON.stringify(state));
     delete c.syncUrl; delete c.gsUrl; delete c.autoSync;
-    c.employees.forEach(function (e) { delete e.photo; });
+    c.employees.forEach(function (e) { delete e.photo; delete e.photoAt; delete e.pv; });
     return c;
   }
   function pushNow(cb) {
@@ -1235,8 +1238,8 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
   photoInput.addEventListener('change', function () {
     var f = photoInput.files && photoInput.files[0]; if (!f || !photoTarget) return;
     shrink(f, function (url) {
-      if (photoTarget === 'owner') { try { localStorage.setItem(OWNER_PHOTO_KEY, url); } catch (x) { toast('နေရာမလုံလောက်ပါ'); return; } showOwnerPhoto(); }
-      else { var e = byId(photoTarget); if (!e) return; e.photo = url; persist(); refresh(); if (modalId === e.id && !$('modal-employee-detail').hidden) openModal(e.id); }
+      if (photoTarget === 'owner') { try { localStorage.setItem(OWNER_PHOTO_KEY, url); } catch (x) { toast('နေရာမလုံလောက်ပါ'); return; } kOwnerPush(url); showOwnerPhoto(); }
+      else { var e = byId(photoTarget); if (!e) return; e.photo = url; kPhotoPush(e); persist(); refresh(); if (modalId === e.id && !$('modal-employee-detail').hidden) openModal(e.id); }
       toast('ဓာတ်ပုံ ပြောင်းပြီးပါပြီ');
     });
   });
@@ -1313,7 +1316,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
     $('badge-pop-who').innerHTML = badgeHtml(it.e, 'w-7 h-7 text-xs') + '<span>' + esc(it.e.name) + '</span>';
     pop.hidden = false;
     var card = $('badge-pop-card'); card.classList.remove('bp-card'); void card.offsetWidth; card.classList.add('bp-card');
-    setTimeout(function () { sfx.levelup(); }, 250);
+    window.kLevelFx = Date.now(); setTimeout(function () { sfx.levelup(); }, 250);
     if (!REDUCED && typeof confetti === 'function') confetti({ particleCount: 80, spread: 80, startVelocity: 38, origin: { y: .55 }, colors: ['#fbbf24', '#f59e0b', '#fde68a', '#ffffff'], zIndex: 200 });
     badgeTimer = setTimeout(nextBadge, 4800);
   }
@@ -1409,7 +1412,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
       }
       if (ups.length || topChanged) {
         sfx.fanfare();
-        if (topChanged) fxConfetti();
+        if (topChanged) { window.kLevelFx = Date.now(); fxConfetti(); }
         setTimeout(function () {
           Object.keys(lbUp).forEach(function (k) { if (lbUp[k] <= Date.now()) delete lbUp[k]; });
           el.querySelectorAll('.rankup').forEach(function (n) { n.remove(); });
@@ -1417,7 +1420,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
         }, 4700);
       }
     } else {
-      clearTimeout(lbTimers[id]); lbTimers[id] = setTimeout(function () { fxConfetti(); }, 2500);
+      clearTimeout(lbTimers[id]); lbTimers[id] = setTimeout(function () { window.kLevelFx = Date.now(); fxConfetti(); }, 2500);
     }
   }
   /* canvas effects */
@@ -1577,7 +1580,7 @@ ALTER TABLE kpi_records DISABLE ROW LEVEL SECURITY;</pre></details>
       return '<div class="ios-card p-3 border border-zinc-800 text-xs space-y-1.5">' +
         '<div class="flex justify-between items-start gap-2"><div class="min-w-0"><div class="font-bold text-white">' + esc(t.name) + ' <span class="text-[10px] text-zinc-400 font-normal">(' + esc(t.unit) + ')</span></div>' +
         '<div class="text-[10px] text-zinc-500">' + tag + '</div></div>' +
-        (t.derived ? '' : '<button type="button" data-del-task="' + t.id + '" class="text-[11px] text-red-400 whitespace-nowrap px-2 py-1">ဖယ်မည်</button>') + '</div>' +
+        (t.derived ? '' : '<button type="button" data-edit-task="' + t.id + '" class="text-[11px] text-blue-400 whitespace-nowrap px-2 py-1">✎ ပြင်မည်</button><button type="button" data-del-task="' + t.id + '" class="text-[11px] text-red-400 whitespace-nowrap px-2 py-1">ဖယ်မည်</button>') + '</div>' +
         '<div class="text-[10px] text-zinc-400">' + esc(ruleText(t)) + '</div>' +
         (t.derived ? '' : '<div class="flex items-center gap-2 text-[11px]"><label for="mult-' + t.id + '" class="text-zinc-400">Target ရောက်ရင် အဆ ×</label><input id="mult-' + t.id + '" data-edit-mult="' + t.id + '" type="number" inputmode="decimal" min="1" step="0.5" value="' + t.mult + '" class="w-16 bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-white text-center"></div>') +
         '</div>';
@@ -2528,6 +2531,45 @@ revoke all on function ack_staff_request(uuid,text) from public;
 grant execute on function submit_staff_request(text,text,date,date,text,text) to anon,authenticated;
 grant execute on function check_staff_request(uuid,text) to anon,authenticated;
 grant execute on function ack_staff_request(uuid,text) to anon,authenticated;`;
+  var KV7SQL = `create table if not exists profiles(user_id uuid primary key,role text not null,emp_id text,name text,login text);
+alter table profiles enable row level security;
+drop policy if exists p_sel on profiles;
+drop policy if exists p_own on profiles;
+create policy p_sel on profiles for select to authenticated using(user_id=auth.uid() or is_owner());
+create policy p_own on profiles for all to authenticated using(is_owner()) with check(is_owner());
+revoke all on profiles from anon;
+grant select,insert,update,delete on profiles to authenticated;
+create table if not exists app_backups(id text primary key,data jsonb,created_at timestamptz default now());
+alter table app_backups enable row level security;
+drop policy if exists bk_owner on app_backups;
+create policy bk_owner on app_backups for all to authenticated using(is_owner()) with check(is_owner());
+revoke all on app_backups from anon;
+grant select,insert,update,delete on app_backups to authenticated;
+create table if not exists announcements(id text primary key,title text,body text,author text,created_at timestamptz default now());
+create table if not exists ann_reads(ann_id text,who text,read_at timestamptz default now(),primary key(ann_id,who));
+create table if not exists leaves(id text primary key,emp_id text,emp_name text,kind text,date_from date,date_to date,reason text,status text default 'pending',decided_by text,created_at timestamptz default now());
+create table if not exists assignments(id text primary key,title text,detail text,emp_id text,emp_name text,due date,status text default 'open',note text,created_by text,created_at timestamptz default now(),done_at timestamptz);
+alter table announcements disable row level security;
+alter table ann_reads disable row level security;
+alter table leaves disable row level security;
+alter table assignments disable row level security;
+revoke all on announcements,ann_reads,leaves,assignments from anon;
+grant select,insert,update,delete on announcements,ann_reads,leaves,assignments to authenticated;
+alter table messages drop constraint if exists messages_sender_role_check;
+alter table messages add constraint messages_sender_role_check check (sender_role in ('owner','staff','manager'));
+`;
+  var KSEENSQL = `create table if not exists presence(who text primary key,name text,role text,last_active timestamptz not null default now());
+alter table presence disable row level security;
+revoke all on presence from anon;
+grant select,insert,update,delete on presence to authenticated;
+do $$ begin alter publication supabase_realtime add table presence; exception when duplicate_object then null; end $$;
+create table if not exists chat_seen(who text primary key,name text,seen_at timestamptz not null default now());
+create table if not exists staff_photos(emp_id text primary key,photo text,updated_at timestamptz default now());
+alter table chat_seen disable row level security;
+alter table staff_photos disable row level security;
+revoke all on chat_seen,staff_photos from anon;
+grant select,insert,update,delete on chat_seen,staff_photos to authenticated;
+do $$ begin alter publication supabase_realtime add table chat_seen; exception when duplicate_object then null; end $$;`;
   var CKSQL = `create table if not exists checkins(id uuid primary key default gen_random_uuid(),emp_id text not null,name text,day date not null,time text,dist numeric,acc numeric,created_at timestamptz default now(),unique(emp_id,day));
 alter table checkins enable row level security;
 revoke all on checkins from anon;
@@ -2575,6 +2617,8 @@ do $$ begin alter publication supabase_realtime add table messages; exception wh
 do $$ begin alter publication supabase_realtime add table app_state; exception when duplicate_object then null; end $$;
 ${CKSQL}
 ${KREQSQL}
+${KSEENSQL}
+${KV7SQL}
 notify pgrst, 'reload schema';`;
   var KMISS = ['PGRST205', '42P01', '42703', 'PGRST204'];
   function kget(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
@@ -2621,13 +2665,6 @@ notify pgrst, 'reload schema';`;
     }).catch(function () { pulling = false; if (cb) cb(false); });
   };
   /* staff QR (one Supabase account per employee, stored owner-only) */
-  async function kStaffCred(id) {
-    var r = await kapi('staff_logins?emp_id=eq.' + encodeURIComponent(id) + '&select=email,pass'); if (r && r[0]) return r[0];
-    var email = 's' + krand(12) + '@' + KDOM, pass = krand(20), j = await kAuth('signup', { email: email, password: pass });
-    if (!j.access_token) throw new Error('Email confirmation ကို ပိတ်ပါ');
-    await kapi('staff_logins', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ emp_id: id, email: email, pass: pass, user_id: j.user.id }) });
-    return { email: email, pass: pass };
-  }
   renderPair = function () {
     var on = !!kauth && !kdemo && kauth.role === 'owner';
     $('pair-box').hidden = !on; var st = $('gs-status'); st.hidden = !on; st.textContent = on ? 'Supabase ချိတ်ဆက်ပြီးပါပြီ' : '';
@@ -2649,7 +2686,7 @@ notify pgrst, 'reload schema';`;
       var j; try { j = await kAuth('token?grant_type=password', { email: em, password: pw }); }
       catch (e) { if (!$('kn').checked) throw e; j = await kAuth('signup', { email: em, password: pw }); if (!j.access_token) throw new Error('Email confirmation ကို ပိတ်ပါ'); }
       kauth = kMk(j, 'owner', { name: em.split('@')[0] });
-      var chk = ['app_state?select=id', 'staff_logins?select=emp_id', 'messages?select=id', 'kpi_records?select=staff_name,points,record_date', 'monthly_winners?select=staff_name,total_score,month_year', 'owners?select=user_id', 'checkins?select=id', 'staff_requests?select=id'];
+      var chk = ['app_state?select=id', 'staff_logins?select=emp_id', 'messages?select=id', 'kpi_records?select=staff_name,points,record_date', 'monthly_winners?select=staff_name,total_score,month_year', 'owners?select=user_id', 'checkins?select=id', 'staff_requests?select=id', 'chat_seen?select=who', 'presence?select=who', 'profiles?select=user_id', 'app_backups?select=id', 'announcements?select=id', 'leaves?select=id', 'assignments?select=id', 'ann_reads?select=ann_id', 'staff_photos?select=emp_id'];
       for (var i = 0; i < chk.length; i++) { try { await kapi(chk[i] + '&limit=1'); } catch (e) { if (KMISS.indexOf(e.code) >= 0 || e.status === 404) { $('ksql').value = KSQL; $('ksqlbox').hidden = false; kauth = null; return kErr('Table မပြည့်စုံသေးပါ — SQL ကို Run ပြီး ပြန်နှိပ်ပါ'); } throw e; } }
       var o = await kapi('owners?select=user_id');
       if (!o.length) { try { await kapi('owners', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: kauth.uid }) }); } catch (e) { throw new Error('ဤအကောင့်သည် Owner မဟုတ်ပါ'); } }
@@ -2672,7 +2709,10 @@ notify pgrst, 'reload schema';`;
     try { localStorage.setItem('bonusbook-role', kauth.role); } catch (e) {}
     syncUrl = 'supabase';
     await new Promise(function (res) { pullFrom('', function (ok, empty) { if (empty && kauth.role === 'owner') pushNow(); res(); }); });
-    if (kauth.role === 'staff') { var e = byId(kauth.emp); if (!e) { klogout(); return; } staffId = e.id; loggedIn = true; applyLogin(); kauth.name = e.name; } else if (!kauth.name) kauth.name = 'Owner';
+    if (kauth.role === 'staff') { var e = byId(kauth.emp);
+      for (var kt = 0; !e && kt < 3; kt++) { await new Promise(function (r) { setTimeout(r, 1200); }); pulling = false; await new Promise(function (res) { pullFrom('', function () { res(); }); }); e = byId(kauth.emp); }
+      if (!e) { var ne = new Error('ဝန်ထမ်းစာရင်းထဲ မတွေ့ပါ — Admin ဘက်က Data မရောက်သေးပါ (ပြန်ကြိုးစားပါ)'); ne.code = 'noemp'; throw ne; }
+      staffId = e.id; loggedIn = true; applyLogin(); kauth.name = e.name; } else if (!kauth.name) kauth.name = 'Owner';
     $('kgate').hidden = true; applyRole(kauth.role); renderPair(); kChatStart(); ckLoad();
   }
   async function klogout() {
@@ -2698,7 +2738,9 @@ notify pgrst, 'reload schema';`;
     ksb = ksb || supabase.createClient(kcfg.url, kcfg.key, { auth: { persistSession: false, autoRefreshToken: false } }); ksb.realtime.setAuth(kauth.access);
     kchan = ksb.channel('bb-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, function (p) { kAdd(p.new); kDown(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, function () { pullFrom('', null, true); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, function (p) { var rv = p && p.new && Number(p.new.rev); if ((rv && rv === kRemoteRev) || kBusyPush()) return; pulling = false; pullFrom('', null, false); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'presence' }, function (p) { if (p.new && p.new.who) { kPres[p.new.who] = p.new; kPresRender(); } })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_seen' }, function (p) { if (p.new && p.new.who) { kSeenMap[p.new.who] = p.new.seen_at; kSeenRender(); } })
       .subscribe(function (s) { $('kst').textContent = s === 'SUBSCRIBED' ? '🟢 Live' : '…'; });
   }
   function kChatOpen() { $('kchat').hidden = false; kunread = 0; $('kdot').hidden = true; setTimeout(function () { $('klist').scrollTop = 1e9; $('kin').focus(); }, 50); }
@@ -2714,7 +2756,7 @@ notify pgrst, 'reload schema';`;
   (function () {
     $('owner-portal-view').hidden = true; $('staff-portal-view').hidden = true; $('bottom-tab-bar').hidden = true; $('role-gate').hidden = true;
     kcfg = kget('kpi_cfg'); kauth = kget('kpi_auth');
-    if (kcfg && kauth) kEnter().catch(function () { $('kgate').hidden = false; });
+    if (kcfg && kauth && !/^#demo/.test(location.hash)) kEnter().catch(function (er) { $('kgate').hidden = false; kErr(er && er.message ? er.message : ''); });
   })();
   /* ===== Staff privacy: Ranking Book only (points), own money only ===== */
   renderLBStaff = function () {
@@ -2855,7 +2897,7 @@ notify pgrst, 'reload schema';`;
     return p;
   }
   function payCalc(e, m) {
-    var P = PAY(), sm = P.start.split(':'), st = (+sm[0]) * 60 + (+sm[1]), present = 0, lc = 0, lm = 0;
+    var P = PAY(), sm = (e.start || P.start).split(':'), st = (+sm[0]) * 60 + (+sm[1]), present = 0, lc = 0, lm = 0;
     kck.forEach(function (x) {
       if (x.empId !== e.id || x.date.slice(0, 7) !== m) return; present++;
       var t = x.time.split(':'), mins = (+t[0]) * 60 + (+t[1]) - st; if (mins > P.grace) { lc++; lm += mins; }
@@ -3035,19 +3077,32 @@ notify pgrst, 'reload schema';`;
     if (kregTm) clearInterval(kregTm);
     var go = function () { kRegPoll(q); }; go(); kregTm = setInterval(go, 4000);
   }
+  var kregBusy = false;
+  function kRegFail(icon, msg, retry) { $('kw-icon').textContent = icon; $('kw-msg').textContent = msg; $('kw-retry').hidden = !retry; $('kw-cancel').hidden = false; }
   async function kRegPoll(q) {
+    if (kregBusy) return;
     var cfg = { url: q.url, key: q.key }, r;
-    try { r = await kRpc(cfg, 'check_staff_request', { p_id: q.id, p_token: q.token }); } catch (e) { return; } /* offline: keep waiting */
-    if (!r) { localStorage.removeItem('kpi_req'); kRegClose(); kRegShow('form'); return; }
-    if (r.status === 'rejected') { clearInterval(kregTm); kregTm = null; localStorage.removeItem('kpi_req'); $('kw-icon').textContent = '❌'; $('kw-msg').textContent = 'Admin က ငြင်းပယ်လိုက်ပါသည်'; $('kw-code').textContent = ''; return; }
-    if (r.status !== 'approved' || !r.email || !r.pass) return;
-    clearInterval(kregTm); kregTm = null; $('kw-icon').textContent = '✅'; $('kw-msg').textContent = 'ခွင့်ပြုပြီးပါပြီ! ID: ' + (r.staff_no || '') + ' — ဝင်နေပါသည်…'; $('kw-cancel').hidden = true;
+    try { r = await kRpc(cfg, 'check_staff_request', { p_id: q.id, p_token: q.token }); $('kw-code').textContent = 'Request: ' + String(q.id).slice(0, 8); }
+    catch (e) { $('kw-code').textContent = 'စစ်၍မရပါ: ' + (e.message || e); return; } /* keep waiting, but show why */
+    if (!r) { clearInterval(kregTm); kregTm = null; localStorage.removeItem('kpi_req'); return kRegFail('❓', 'တောင်းဆိုမှု မတွေ့ပါ (Admin က ဖျက်ထားနိုင်သည်) — ပြန်စပါ', false); }
+    if (r.status === 'rejected') { clearInterval(kregTm); kregTm = null; localStorage.removeItem('kpi_req'); return kRegFail('❌', 'Admin က ငြင်းပယ်လိုက်ပါသည်', false); }
+    if (r.status !== 'approved') return;
+    if (!r.email || !r.pass) { clearInterval(kregTm); kregTm = null; return kRegFail('⚠️', 'ခွင့်ပြုပြီးသားဖြစ်သော်လည်း Login အချက်အလက် မရတော့ပါ — Admin ကို ပြန်ဆက်သွယ်ပါ', false); }
+    kregBusy = true; clearInterval(kregTm); kregTm = null; $('kw-icon').textContent = '✅'; $('kw-msg').textContent = 'ခွင့်ပြုပြီးပါပြီ! ID: ' + (r.staff_no || '') + ' — ဝင်နေပါသည်…'; $('kw-cancel').hidden = true; $('kw-retry').hidden = true;
     try {
       kcfg = cfg; var j = await kAuth('token?grant_type=password', { email: r.email, password: r.pass });
       kauth = kMk(j, 'staff', { emp: r.emp_id }); kset('kpi_cfg', kcfg); kset('kpi_auth', kauth);
+      kset('kpi_staffno', r.staff_no || ''); kset('kpi_login', String(r.email).split('@')[0]); kset('kpi_pw', r.pass);
+      await kEnter(); /* throws (with a readable message) if it can not open */
       try { await kRpc(cfg, 'ack_staff_request', { p_id: q.id, p_token: q.token }); } catch (e) {}
-      localStorage.removeItem('kpi_req'); $('kreg').hidden = true; await kEnter(); toast('သင့် Staff ID: ' + (r.staff_no || ''));
-    } catch (e) { kauth = null; $('kw-icon').textContent = '⚠️'; $('kw-msg').textContent = 'Login မအောင်မြင်ပါ: ' + (e.message || e); $('kw-cancel').hidden = false; }
+      localStorage.removeItem('kpi_req'); $('kreg').hidden = true; toast('သင့် Staff ID: ' + (r.staff_no || ''));
+    } catch (e) { kRegFail('⚠️', 'ဝင်၍မရပါ: ' + (e.message || e), true); }
+    finally { kregBusy = false; }
+  }
+  async function kRegRetry() {
+    $('kw-retry').hidden = true; $('kw-msg').textContent = 'ပြန်ဝင်နေပါသည်…';
+    try { if (!kauth) { kauth = kget('kpi_auth'); kcfg = kget('kpi_cfg'); } if (!kauth || !kcfg) throw new Error('Login အချက်အလက် မရှိတော့ပါ'); await kEnter(); localStorage.removeItem('kpi_req'); $('kreg').hidden = true; }
+    catch (e) { kRegFail('⚠️', 'ဝင်၍မရပါ: ' + (e.message || e), true); }
   }
   /* owner side: pending list inside Settings */
   (function () {
@@ -3094,6 +3149,370 @@ notify pgrst, 'reload schema';`;
   renderPair = function () { $('pair-box').hidden = true; var on = !!kauth && !kdemo && kauth.role === 'owner', st = $('gs-status'); st.hidden = !on; st.textContent = on ? 'Supabase ချိတ်ဆက်ပြီးပါပြီ' : ''; kReqLoad(); };
   setInterval(function () { if (kauth && !kdemo && kauth.role === 'owner' && !document.hidden) kReqLoad(true); }, 20000);
   if (!kauth && kget('kpi_req')) { $('kreg').hidden = false; kRegWait(kget('kpi_req')); }
+
+  /* ===== v6: loading animation, VPN notice, chat seen+profiles, photo sync, auto/pull refresh, task+staff edit ===== */
+  (function () { var st = document.createElement('style'); st.textContent =
+    '#kbar{position:fixed;top:0;left:0;width:100%;height:3px;z-index:500;pointer-events:none;opacity:0;transition:opacity .2s;background:linear-gradient(90deg,transparent,#60a5fa,#a855f7,transparent) no-repeat;background-size:40% 100%;animation:kbar 1s linear infinite}#kbar.on{opacity:1}' +
+    '@keyframes kbar{0%{background-position:-40% 0}100%{background-position:140% 0}}@keyframes kspin{to{transform:rotate(360deg)}}' +
+    '.kspin{display:inline-block;width:18px;height:18px;border:3px solid #3f3f46;border-top-color:#60a5fa;border-radius:50%;animation:kspin .7s linear infinite}' +
+    '#kload{position:fixed;inset:0;z-index:490;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .25s}#kload.on{opacity:1}' +
+    '#kload div{background:rgba(24,24,27,.94);border:1px solid #3f3f46;border-radius:16px;padding:14px 18px;color:#e4e4e7;font-size:12px;text-align:center}#kload .kspin{width:28px;height:28px;margin-bottom:6px}' +
+    '#kptr{position:fixed;top:-48px;left:50%;margin-left:-20px;width:40px;height:40px;border-radius:50%;background:#18181b;border:1px solid #3f3f46;display:flex;align-items:center;justify-content:center;z-index:480;transition:top .15s}' +
+    '#kvpnpop{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:#78350f;color:#fde68a;border:1px solid #f59e0b;border-radius:999px;padding:8px 16px;font-size:12px;font-weight:700;transition:opacity .6s;white-space:nowrap}' +
+    '.kov{position:fixed;inset:0;z-index:340;background:#09090b;overflow:auto;padding:16px}.kov input,.kov select{width:100%;background:#18181b;border:1px solid #3f3f46;border-radius:10px;padding:8px;color:#fff;font-size:13px}.kov label{display:block;font-size:10px;color:#a1a1aa;margin:8px 0 2px}';
+    document.head.appendChild(st);
+    var h = document.createElement('div'); h.innerHTML = '<div id="kbar"></div><div id="kload"><div><span class="kspin"></span><div>ခဏစောင့်ပါ…<br><span style="color:#fbbf24">VPN ဖွင့်ထားရန် လိုအပ်ပါသည်</span></div></div></div><div id="kptr"><span class="kspin"></span></div>';
+    while (h.firstChild) document.body.appendChild(h.firstChild);
+    /* VPN notice: on the login page + a pill at every app start */
+    var pop = document.createElement('div'); pop.id = 'kvpnpop'; pop.textContent = '🔒 VPN ချိတ်ဆက်ထားရန် လိုအပ်ပါသည်'; document.body.appendChild(pop);
+    setTimeout(function () { pop.style.opacity = 0; setTimeout(function () { pop.remove(); }, 700); }, 4500);
+    var gb = document.createElement('div'); gb.className = 'text-[11px] text-amber-300 bg-amber-950/60 border border-amber-700 rounded-lg p-2'; gb.textContent = '⚠️ App ကိုသုံးရန် VPN ချိတ်ဆက်ထားရန် လိုအပ်ပါသည်။';
+    var ke = $('ke'); ke.parentNode.insertBefore(gb, ke);
+    /* global fetch hook -> top bar always, centre spinner only when slow (>1.5s) */
+    var n = 0, tm = null, _f = window.fetch.bind(window);
+    window.fetch = function () { n++; $('kbar').classList.add('on'); if (!tm) tm = setTimeout(function () { if (n > 0) $('kload').classList.add('on'); }, 1500);
+      var done = function () { if (--n <= 0) { n = 0; $('kbar').classList.remove('on'); $('kload').classList.remove('on'); clearTimeout(tm); tm = null; } };
+      return _f.apply(null, arguments).then(function (r) { done(); return r; }, function (e) { done(); throw e; }); };
+  })();
+  var _kErr = kErr; kErr = function (m) { if (/fetch|network|load failed|ချိတ်ဆက်၍မရ/i.test(m || '')) m = (m || '') + ' — VPN ဖွင့်ထားပါ'; _kErr(m); };
+
+  /* photos: kept in table staff_photos, only the version stamp (e.pv) travels with app_state */
+  async function kPhotoPush(e) { e.photoAt = new Date().toISOString(); if (!kauth || kdemo) return;
+    try { await kapi('staff_photos?on_conflict=emp_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ emp_id: e.id, photo: e.photo, updated_at: e.photoAt }) }); }
+    catch (er) { toast('ဓာတ်ပုံ upload မအောင်မြင်ပါ (VPN စစ်ပါ)'); } }
+  async function kOwnerPush(u) { if (!kauth || kdemo) return; kOwnerPhoto = u; try { await kapi('staff_photos?on_conflict=emp_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ emp_id: 'owner', photo: u, updated_at: new Date().toISOString() }) }); } catch (e) {} }
+  var kOwnerPhoto = null, kPhBusy = false;
+  async function kPhotoSync() { if (kPhBusy || !kauth || kdemo) return; kPhBusy = true;
+    try { var meta = await kapi('staff_photos?select=emp_id,updated_at'), have = {}; meta.forEach(function (m) { have[m.emp_id] = m.updated_at; });
+      var need = state.employees.filter(function (e) { return have[e.id] && e.photoAt !== have[e.id]; });
+      if (need.length) { var rows = await kapi('staff_photos?select=emp_id,photo,updated_at&emp_id=in.(' + need.map(function (e) { return e.id; }).join(',') + ')');
+        rows.forEach(function (r) { var e = byId(r.emp_id); if (e) { e.photo = r.photo; e.photoAt = r.updated_at; } });
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (x) {} refresh(); kAvRefresh(); }
+      if (!kOwnerPhoto && have.owner) { var o = await kapi('staff_photos?select=photo&emp_id=eq.owner'); if (o[0]) kOwnerPhoto = o[0].photo; }
+      if (kauth.role === 'owner') state.employees.filter(function (e) { return e.photo && !have[e.id]; }).forEach(function (e) { kPhotoPush(e); }); } catch (e) {}
+    kPhBusy = false; }
+  var kRemoteRev = 0, kPendingUntil = 0;
+  function kBusyPush() { return Date.now() < kPendingUntil; } /* the app's push timer id is never reset, so it can not tell whether a push is pending */
+  var _kSP = schedulePush; schedulePush = function () { kPendingUntil = Date.now() + 2600; _kSP(); };
+  var _kAR = applyRemote; applyRemote = function (r) { kRemoteRev = Number(r && r.rev) || kRemoteRev; var pa = {}; state.employees.forEach(function (e) { if (e.photoAt) pa[e.id] = e.photoAt; });
+    _kAR(r); state.employees.forEach(function (e) { if (pa[e.id]) e.photoAt = pa[e.id]; }); kPhotoSync(); };
+
+  /* chat: profile photos + Seen */
+  var kSeenMap = {}, kMsT = 0, kMsTm = null;
+  function kAvHtml(name, role, sz) { var u = null, e = null; sz = sz || 'w-8 h-8';
+    if (role === 'owner') u = kOwnerPhoto || (function () { try { return localStorage.getItem(OWNER_PHOTO_KEY); } catch (x) {} })();
+    else e = state.employees.filter(function (x) { return x.name === name; })[0];
+    if (u) return '<img src="' + u + '" alt="" class="' + sz + ' rounded-full object-cover">';
+    if (e) return badgeHtml(e, sz + ' text-xs');
+    return '<span class="' + sz + ' rounded-full bg-zinc-700 text-white text-xs flex items-center justify-center">' + esc(Array.from(name || '?')[0]) + '</span>'; }
+  function kAvPaint(a) { a.style.position = 'relative'; a.innerHTML = kAvHtml(a.getAttribute('data-av'), a.getAttribute('data-role')); kDot(a, kActive(a.getAttribute('data-role') + ':' + a.getAttribute('data-av'))); }
+  function kAvRefresh() { document.querySelectorAll('#klist [data-av]').forEach(kAvPaint); kPresRender(); }
+  var _kAdd = kAdd; kAdd = function (m) { if (!kLastTs || m.created_at > kLastTs) kLastTs = m.created_at; if (kseen[m.id]) return; var list = $('klist'), before = list.lastChild; _kAdd(m); var d = list.lastChild; if (!d || d === before) return;
+    var mine = m.sender_name === kauth.name && m.sender_role === kauth.role, row = document.createElement('div'), av = document.createElement('div');
+    row.className = 'flex gap-2 items-start ' + (mine ? 'flex-row-reverse' : ''); row.setAttribute('data-ts', m.created_at); row.setAttribute('data-mine', mine ? 1 : 0);
+    av.className = 'flex-none'; av.setAttribute('data-av', m.sender_name); av.setAttribute('data-role', m.sender_role); kAvPaint(av);
+    list.replaceChild(row, d); d.style.maxWidth = '80%'; row.appendChild(av); row.appendChild(d);
+    if (mine) { var sn = document.createElement('div'); sn.className = 'kseen text-[10px] text-zinc-500 mt-0.5'; d.appendChild(sn); }
+    if (!$('kchat').hidden && !mine) kMarkSeen(); kSeenRender(); };
+  function kSeenRender() { document.querySelectorAll('#klist .kseen').forEach(function (e) { e.textContent = ''; });
+    var rows = [].slice.call(document.querySelectorAll('#klist [data-mine="1"]')), last = rows[rows.length - 1]; if (!last || !kauth) return;
+    var ts = Date.parse(last.getAttribute('data-ts')), me = kauth.role + ':' + kauth.name;
+    var who = Object.keys(kSeenMap).filter(function (k) { return k !== me && Date.parse(kSeenMap[k]) >= ts; });
+    var el = last.querySelector('.kseen'); if (!el) return;
+    if (!who.length) { el.textContent = '✓ Sent'; return; }
+    var nm = function (k) { return k.split(':').slice(1).join(':'); };
+    el.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px">Seen by ' + who.slice(0, 3).map(function (k) { return '<span style="display:inline-block">' + kAvHtml(nm(k), k.split(':')[0], 'w-4 h-4') + '</span>'; }).join('') + ' ' + esc(who.slice(0, 2).map(nm).join(', ')) + (who.length > 2 ? ' +' + (who.length - 2) : '') + '</span>'; }
+  function kMarkSeen() { if (!kauth || kdemo) return; if (Date.now() - kMsT < 2500) { clearTimeout(kMsTm); kMsTm = setTimeout(kMarkSeen, 2600); return; }
+    kMsT = Date.now(); var who = kauth.role + ':' + kauth.name, now = new Date().toISOString(); kSeenMap[who] = now;
+    kapi('chat_seen?on_conflict=who', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ who: who, name: kauth.name, seen_at: now }) }).catch(function () {}); }
+  var _kCO = kChatOpen; kChatOpen = function () { _kCO(); kMarkSeen(); kSeenRender(); };
+  async function kChatPoll() { if (!kauth || kdemo) return;
+    var ms = await kapi('messages?select=*&order=created_at.asc&limit=50' + (kLastTs ? '&created_at=gt.' + encodeURIComponent(kLastTs) : ''));
+    ms.forEach(function (m) { var had = kseen[m.id]; kAdd(m); if (!had && !$('kchat').hidden) kDown(); });
+    try { (await kapi('chat_seen?select=*')).forEach(function (r) { kSeenMap[r.who] = r.seen_at; }); kSeenRender(); } catch (e) {}
+    await kPresLoad(); kLive(true); }
+  /* refresh: auto every 8s + pull down the whole screen */
+  var kRefBusy = false;
+  async function kRefreshNow(manual) { if (!kauth || kdemo || kRefBusy) return; kRefBusy = true;
+    try { if (kBusyPush()) { clearTimeout(pushTimer); kPendingUntil = 0; await new Promise(function (r) { pushNow(r); }); }
+      pulling = false; await new Promise(function (res) { pullFrom('', function () { res(); }, !manual); });
+      if (kauth.role === 'owner') { var m = state.employees.filter(function (e) { return false; }); if (m.length) { m.forEach(function (e) { kPhotoPush(e); }); persist(); } }
+      if (kauth.role === 'staff' && state.employees.length && !byId(kauth.emp)) { toast('သင့်အကောင့်ကို ဖယ်ရှားထားပါသည်'); klogout(); return; }
+      await kPhotoSync(); await kChatPoll(); if (manual) toast('Refresh ပြီးပါပြီ ✓'); } catch (e) {}
+    kRefBusy = false; }
+  var kLastTs = '', kTickN = 0;
+  async function kTick() { if (!kauth || kdemo || kRefBusy || document.hidden) return; kRefBusy = true; kTickN++;
+    try {
+      var r = await kapi('app_state?id=eq.main&select=rev'); /* tiny request: only the version number */ kLive(true);
+      if (r[0] && Number(r[0].rev) !== kRemoteRev && !kBusyPush()) { pulling = false; await new Promise(function (res) { pullFrom('', function () { res(); }, false); }); }
+      var ms = await kapi('messages?select=*&order=created_at.asc&limit=50' + (kLastTs ? '&created_at=gt.' + encodeURIComponent(kLastTs) : ''));
+      ms.forEach(function (m) { var had = kseen[m.id]; kAdd(m); if (!had && !$('kchat').hidden) kDown(); });
+      if (!$('kchat').hidden) { (await kapi('chat_seen?select=*')).forEach(function (x) { kSeenMap[x.who] = x.seen_at; }); kSeenRender(); }
+      if (!$('kchat').hidden || kTickN % 5 === 1) await kPresLoad(); if (kTickN === 1) kBeat();
+      if (kauth.role === 'owner' && kTickN % 10 === 1) { var m2 = state.employees.filter(function (e) { return false; }); if (m2.length) { m2.forEach(function (e) { kPhotoPush(e); }); persist(); } }
+      if (kauth.role === 'staff' && state.employees.length && !byId(kauth.emp)) { toast('သင့်အကောင့်ကို ဖယ်ရှားထားပါသည်'); klogout(); }
+    } catch (e) { kLive(false); }
+    kRefBusy = false; }
+  setInterval(kTick, 3000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) kTick(); });
+  (function () { var sy = 0, dy = 0, on = false, el = $('kptr');
+    document.addEventListener('touchstart', function (e) { if (!kauth || window.scrollY > 0 || e.touches.length !== 1) return;
+      if (e.target.closest && e.target.closest('#kchat,.modal-wrap,.kov,#kreg,input,textarea,select')) return; sy = e.touches[0].clientY; dy = 0; on = true; }, { passive: true });
+    document.addEventListener('touchmove', function (e) { if (!on) return; dy = e.touches[0].clientY - sy; if (dy <= 0) { el.style.top = '-48px'; return; } el.style.top = Math.min(dy / 2 - 30, 60) + 'px'; el.firstChild.style.transform = 'rotate(' + dy * 3 + 'deg)'; }, { passive: true });
+    document.addEventListener('touchend', async function () { if (!on) return; on = false; if (dy > 110) { el.style.top = '60px'; await kRefreshNow(true); } el.style.top = '-48px'; el.firstChild.style.transform = ''; }); })();
+
+  /* fireworks/confetti only on level-up (badge unlocked / rank-up) */
+  var _cf = window.confetti; if (typeof _cf === 'function') window.confetti = function () { if (Date.now() - (window.kLevelFx || 0) < 600) return _cf.apply(this, arguments); };
+  var _fw = fxFireworks; fxFireworks = function () { if (Date.now() - (window.kLevelFx || 0) < 600) _fw.apply(this, arguments); };
+
+  /* task editor (own screen) */
+  function kOv(id, html) { var o = $(id); if (o) o.remove(); o = document.createElement('div'); o.id = id; o.className = 'kov'; o.innerHTML = '<div class="max-w-sm mx-auto pt-6 space-y-1 text-xs">' + html + '</div>'; document.body.appendChild(o); return o; }
+  function kOpts(selId, cur) { return [].map.call($(selId).options, function (o) { return '<option value="' + o.value + '"' + (o.value === cur ? ' selected' : '') + '>' + esc(o.textContent) + '</option>'; }).join(''); }
+  function kTaskEdit(id) { var t = state.tasks.filter(function (x) { return x.id === id; })[0]; if (!t || t.derived) return;
+    var o = kOv('ktedit', '<div class="flex justify-between items-center mb-2"><b class="text-white text-base">အလုပ်တာဝန် ပြင်ရန်</b><button type="button" class="text-blue-400 font-bold" id="kt-x">ပိတ်မည်</button></div>' +
+      '<label>အမည်</label><input id="kt-name"><label>အုပ်စု</label><select id="kt-group">' + kOpts('new-task-group', t.group) + '</select><label>ယူနစ်</label><input id="kt-unit">' +
+      '<label>ပုံစံ</label><select id="kt-kind">' + kOpts('new-task-kind', t.kind) + '</select><label>ဈေး / ယူနစ်</label><input id="kt-price" type="number" inputmode="decimal"><label>ရာခိုင်နှုန်း %</label><input id="kt-pct" type="number" inputmode="decimal">' +
+      '<label>Target</label><input id="kt-target" type="number" inputmode="decimal"><label>Target ရောက်ရင် အဆ ×</label><input id="kt-mult" type="number" inputmode="decimal" step="0.5"><button type="button" id="kt-save" class="w-full mt-4 py-3 bg-emerald-600 rounded-xl font-bold text-white">သိမ်းမည်</button>');
+    o.querySelector('#kt-name').value = t.name; o.querySelector('#kt-unit').value = t.unit; o.querySelector('#kt-price').value = t.price; o.querySelector('#kt-pct').value = t.pct; o.querySelector('#kt-target').value = t.target; o.querySelector('#kt-mult').value = t.mult;
+    o.querySelector('#kt-x').onclick = function () { o.remove(); };
+    o.querySelector('#kt-save').onclick = function () { var g = function (i) { return o.querySelector('#' + i).value; }, nm = g('kt-name').trim(), tg = num(g('kt-target')), mu = num(g('kt-mult'));
+      if (!nm || !g('kt-unit').trim()) return toast('အမည်/ယူနစ် ထည့်ပါ'); if (tg <= 0 || num(g('kt-price')) < 0) return toast('ကိန်းဂဏန်း မှန်ကန်စွာ ထည့်ပါ'); if (mu < 1) return toast('အဆသည် ၁ နှင့်အထက် ဖြစ်ရမည်');
+      t.name = nm; t.group = g('kt-group'); t.unit = g('kt-unit').trim(); t.kind = g('kt-kind'); t.price = num(g('kt-price')); t.pct = t.kind !== 'flat' ? num(g('kt-pct')) : 0; t.target = tg; t.mult = mu;
+      persist(); refresh(); o.remove(); toast('သိမ်းပြီးပါပြီ ✓'); }; }
+
+  /* staff profile editor: edit / delete / own start time */
+  function kEmpEdit(id) { var e = byId(id); if (!e) return;
+    var o = kOv('kpedit', '<div class="flex justify-between items-center mb-2"><b class="text-white text-base">ဝန်ထမ်း Profile</b><button type="button" class="text-blue-400 font-bold" id="kp-x">ပိတ်မည်</button></div>' +
+      '<label>အမည်</label><input id="kp-name"><label>တာဝန် (Role)</label><input id="kp-role"><label>ဖုန်းနံပါတ်</label><input id="kp-phone" type="tel"><label>အလုပ်စဝင်သည့်နေ့</label><input id="kp-hire" type="date"><label>မွေးနေ့</label><input id="kp-birth" type="date">' +
+      '<label>ကိုယ်ပိုင် အလုပ်ဝင်ချိန် (ဗလာ = ရုံးစံ ချိန်)</label><input id="kp-start" type="time"><button type="button" id="kp-save" class="w-full mt-4 py-3 bg-emerald-600 rounded-xl font-bold text-white">သိမ်းမည်</button>' +
+      '<button type="button" id="kp-del" class="w-full mt-2 py-3 border border-red-700 rounded-xl font-bold text-red-400">🗑 ဝန်ထမ်းကို ဖြတ်မည် (ဖျက်မည်)</button>');
+    var q = function (i) { return o.querySelector('#' + i); };
+    q('kp-name').value = e.name; q('kp-role').value = e.role || ''; q('kp-phone').value = e.phone || ''; q('kp-hire').value = e.hire || ''; q('kp-birth').value = e.birth || ''; q('kp-start').value = e.start || '';
+    q('kp-x').onclick = function () { o.remove(); };
+    q('kp-save').onclick = function () { var nm = q('kp-name').value.trim(); if (!nm) return toast('အမည် ထည့်ပါ');
+      e.name = nm; e.role = q('kp-role').value.trim(); e.phone = q('kp-phone').value.trim(); e.hire = q('kp-hire').value; e.birth = q('kp-birth').value; e.start = q('kp-start').value || ''; if (!e.photo) e.badge = Array.from(nm)[0];
+      persist(); refresh(); o.remove(); $('modal-employee-detail').hidden = true; toast('သိမ်းပြီးပါပြီ ✓'); };
+    q('kp-del').onclick = async function () { if (!confirm(e.name + ' ကို ဖြတ်မည်လား? မှတ်တမ်းအားလုံး ပျက်သွားပါမည်။')) return;
+      state.employees = state.employees.filter(function (x) { return x.id !== id; });
+      try { await kapi('staff_logins?emp_id=eq.' + id, { method: 'DELETE' }); } catch (x) {} try { await kapi('staff_photos?emp_id=eq.' + id, { method: 'DELETE' }); } catch (x) {}
+      persist(); refresh(); o.remove(); $('modal-employee-detail').hidden = true; toast('ဖြတ်ပြီးပါပြီ'); }; }
+  var _kOM = openModal; openModal = function (id) { _kOM(id); if (currentPortal !== 'owner' || !kauth || kauth.role !== 'owner' || !byId(id)) return; var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-edit-emp', id);
+    b.className = 'w-full py-2.5 border border-blue-700 rounded-xl font-bold text-blue-400'; b.textContent = '✎ Profile ပြင်မည် / ဖြတ်မည်'; $('modal-body').appendChild(b); };
+  document.addEventListener('click', function (ev) { var t = ev.target.closest && ev.target.closest('[data-edit-task],[data-edit-emp]'); if (!t) return;
+    if (t.hasAttribute('data-edit-task')) kTaskEdit(t.getAttribute('data-edit-task')); else kEmpEdit(t.getAttribute('data-edit-emp')); });
+
+  /* Demo mode: no password, no network, own local storage (#demo-owner / #demo-staff) */
+  function kDemoGo(role) { location.hash = '#demo-' + role; location.reload(); }
+  (function () { var m = /^#demo-(owner|staff)/.exec(location.hash); if (!m) return; var role = m[1];
+    kdemo = true; kauth = { role: role, name: role === 'owner' ? 'Demo Owner' : 'Demo Staff', access: 'demo', exp: 9e9 };
+    if (kregTm) { clearInterval(kregTm); kregTm = null; } $('kreg').hidden = true; var vp = $('kvpnpop'); if (vp) vp.remove();
+    if (!state.employees.length) { var P = [['မစုစု', 'Designer', 'မ', [92, 85, 70, [10, 9, 10, 8, 10]], { t1: 16500, t2: 8000 }], ['ကိုအောင်', 'DTF Operator', 'အ', [80, 90, 60, [8, 8, 9, 9, 8]], { t1: 12000 }], ['မသီတာ', 'Sales', 'သ', [88, 80, 50, [9, 9, 9, 9, 9]], {}], ['ကိုမျိုး', 'အထည်ချုပ်', 'မျိုး', [75, 70, 80, [7, 8, 7, 8, 7]], { t3: 2200 }]];
+      P.forEach(function (x, i) { var em = mkEmp(i, 'demo' + i, x[0], x[1], x[2], x[3], x[4]); em.hire = '2025-0' + (i + 3) + '-10'; em.birth = '199' + i + '-0' + (i + 2) + '-15'; em.phone = '09 7000000' + i;
+        if (em.group === 'office') em.office = { workDays: 12, daysHit: 10, sales: 8500000, customers: 7, lateCount: 1, lateMin: 10, absent: 0, leave: 0, approved: 0 }; em.hist[CUR] = { basic: em.basic, bonus: 0 }; state.employees.push(em); });
+      persist(); }
+    if (role === 'staff') { var e = state.employees[0]; if (e) { kauth.emp = e.id; kauth.name = e.name; staffId = e.id; loggedIn = true; applyLogin(); } }
+    $('kgate').hidden = true; applyRole(role); refresh();
+    var t = document.createElement('div'); t.style.cssText = 'position:fixed;left:10px;bottom:92px;z-index:420;background:#1e3a8a;color:#bfdbfe;border:1px solid #3b82f6;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:700';
+    t.innerHTML = '👀 DEMO · ဒီဖုန်းထဲမှာပဲ သိမ်းမည် · <u id="kdemo-x">ထွက်မည်</u>'; document.body.appendChild(t); $('kdemo-x').onclick = function () { klogout(); }; })();
+  var _kLO = klogout; klogout = function () { if (kdemo) { try { localStorage.removeItem('bonusbook-role'); } catch (x) {} location.hash = ''; location.reload(); return; } return _kLO(); };
+
+  /* ===== live chat: members, Active now, Last seen, Seen by ===== */
+  var kPres = {}, kLiveBusy = false;
+  function kAgo(ts) { var d = (Date.now() - Date.parse(ts)) / 1000; if (!(d >= 0)) d = 0; if (d < 60) return 'just now'; if (d < 3600) return Math.floor(d / 60) + 'm ago'; if (d < 86400) return Math.floor(d / 3600) + 'h ago'; var x = new Date(ts); return x.getDate() + '/' + (x.getMonth() + 1); }
+  function kActive(w) { var p = kPres[w]; return !!p && Date.now() - Date.parse(p.last_active) < 45000; }
+  function kLive(ok) { var el = $('kst'); if (el) el.textContent = ok ? '🟢 Live' : '🔴 ချိတ်ဆက်မရ (VPN ဖွင့်ပါ)'; }
+  function kBeat() { if (!kauth || kdemo) return; var who = kauth.role + ':' + kauth.name, now = new Date().toISOString(); kPres[who] = { who: who, name: kauth.name, role: kauth.role, last_active: now };
+    kapi('presence?on_conflict=who', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ who: who, name: kauth.name, role: kauth.role, last_active: now }) }).catch(function () {}); }
+  async function kPresLoad() { try { (await kapi('presence?select=*')).forEach(function (r) { kPres[r.who] = r; }); } catch (e) {} kPresRender(); }
+  (function () { var h = document.createElement('div'); h.id = 'kmem-h'; h.className = 'px-3 pt-2 text-[10px] text-zinc-400'; var st = document.createElement('div'); st.id = 'kmem'; st.style.cssText = 'display:flex;gap:12px;overflow-x:auto;padding:8px 12px;border-bottom:1px solid #27272a';
+    var l = $('klist'); l.parentNode.insertBefore(h, l); l.parentNode.insertBefore(st, l); })();
+  function kMembers() { var out = [], seen = {};
+    state.employees.filter(function (e) { return !e.resigned; }).forEach(function (e) { var w = 'staff:' + e.name; seen[w] = 1; out.push({ who: w, name: e.name, role: 'staff' }); });
+    var ow = Object.keys(kPres).filter(function (k) { return kPres[k].role === 'owner'; }); if (!ow.length) ow = ['owner:Owner'];
+    ow.forEach(function (w) { seen[w] = 1; out.unshift({ who: w, name: w.split(':').slice(1).join(':'), role: 'owner' }); });
+    Object.keys(kPres).forEach(function (k) { if (!seen[k] && kPres[k].role !== 'owner') out.push({ who: k, name: kPres[k].name, role: 'staff' }); });
+    return out; }
+  function kDot(av, on) { var d = av.querySelector('.kpd'); if (!d) { d = document.createElement('i'); d.className = 'kpd'; d.style.cssText = 'position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #09090b'; av.appendChild(d); } d.style.display = on ? 'block' : 'none'; }
+  function kPresRender() { var me = kauth ? kauth.role + ':' + kauth.name : '', mem = kMembers(), st = $('kmem'); if (!st) return;
+    mem.sort(function (a, b) { var x = kActive(a.who) ? 1 : 0, y = kActive(b.who) ? 1 : 0; if (x !== y) return y - x; return Date.parse((kPres[b.who] || {}).last_active || 0) - Date.parse((kPres[a.who] || {}).last_active || 0); });
+    var n = mem.filter(function (m) { return kActive(m.who); }).length; $('kmem-h').textContent = '🟢 Active now: ' + n + ' / ' + mem.length;
+    st.innerHTML = mem.map(function (m) { var on = kActive(m.who), p = kPres[m.who], sub = on ? '<span style="color:#22c55e">Active now</span>' : (p ? 'Last seen ' + kAgo(p.last_active) : '—');
+      return '<div style="flex:none;width:64px;text-align:center"><div data-pav style="position:relative;width:40px;margin:0 auto">' + kAvHtml(m.name, m.role, 'w-10 h-10') + (on ? '<i style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#22c55e;border:2px solid #09090b"></i>' : '') + '</div>' +
+        '<div class="text-white truncate" style="font-size:10px;margin-top:2px">' + esc(m.name) + (m.who === me ? ' (You)' : '') + '</div><div style="font-size:9px;color:#a1a1aa;line-height:1.2">' + sub + '</div></div>'; }).join('');
+    document.querySelectorAll('#klist [data-av]').forEach(function (a) { kDot(a, kActive(a.getAttribute('data-role') + ':' + a.getAttribute('data-av'))); }); }
+  setInterval(function () { if (!document.hidden) kBeat(); }, 20000);
+  document.addEventListener('visibilitychange', function () { kBeat(); });
+  setInterval(function () { if (kauth && !kdemo && !document.hidden && !$('kchat').hidden && !kLiveBusy) { kLiveBusy = true; kChatPoll().catch(function () {}).then(function () { kLiveBusy = false; }); } }, 2000);
+  setInterval(function () { if (kauth && !$('kchat').hidden) kPresRender(); }, 5000);
+
+  /* ===== v7: Menu hub (ကြေညာ / တာဝန် / ခွင့် / Payslip / Activity / Backup / Manager / Account), ID login, offline queue ===== */
+  var kH = {}, kR = {}, kRA = {}, kHubCur = '', kDirty = false, kSlip = null, kFlushing = false, kBadgeN = 0;
+  var KTABS = { owner: ['ann', 'task', 'leave', 'slip', 'act', 'bk', 'mgr'], manager: ['ann', 'task', 'leave', 'act', 'acct'], staff: ['ann', 'task', 'leave', 'slip', 'acct'] };
+  var KTN = { ann: '📢 ကြေညာ', task: '📌 တာဝန်', leave: '🏖 ခွင့်', slip: '🧾 Payslip', act: '📈 Activity', bk: '💾 Backup', mgr: '👥 Manager', acct: '🔑 Account' };
+  function kEnc(x) { return encodeURIComponent(x); }
+  function kWho() { return kauth.role + ':' + kauth.name; }
+  function kNm(w) { return w.split(':').slice(1).join(':'); }
+  function kId() { return 'x' + Date.now().toString(36) + krand(4); }
+  function kNum(n) { return Number(n || 0).toLocaleString(); }
+  function kCard(h) { return '<div class="ios-card p-3 border border-zinc-800 space-y-1">' + h + '</div>'; }
+  function kUp(path, body) { return kapi(path, { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(body) }); }
+  function kPatch(path, body) { return kapi(path, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(body) }); }
+  function kBtn(cls, fn, label) { return '<button type="button" class="w-full py-2.5 ' + cls + ' rounded-xl font-bold text-white" onclick="' + fn + '">' + label + '</button>'; }
+  (function () { var st = document.createElement('style'); st.textContent = '.kov textarea{width:100%;background:#18181b;border:1px solid #3f3f46;border-radius:10px;padding:8px;color:#fff;font-size:13px}.khb{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;flex:none}'; document.head.appendChild(st);
+    var f = document.createElement('button'); f.id = 'khubfab'; f.type = 'button'; f.hidden = true; f.style.cssText = 'position:fixed;right:14px;bottom:140px;z-index:150;width:48px;height:48px;border-radius:50%;background:#7c3aed;color:#fff;font-size:22px;border:0;box-shadow:0 4px 14px rgba(0,0,0,.5)';
+    f.innerHTML = '☰<i id="khubn" style="position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-style:normal;line-height:18px;display:none"></i>'; f.onclick = function () { kHubOpen(); }; document.body.appendChild(f);
+    var o = document.createElement('div'); o.id = 'khub'; o.className = 'kov'; o.hidden = true; o.innerHTML = '<div class="max-w-md mx-auto"><div class="flex justify-between items-center mb-2"><b class="text-white text-base">Menu</b><button type="button" class="text-blue-400 font-bold text-sm" onclick="kHubClose()">ပိတ်မည်</button></div><div id="khub-tabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px"></div><div id="khub-body" class="space-y-2 text-xs"></div></div>'; document.body.appendChild(o);
+    var m = document.createElement('div'); m.id = 'kmgr-home'; m.hidden = true; m.className = 'p-6 text-center text-zinc-300 text-sm space-y-3';
+    m.innerHTML = '<div class="text-4xl">🧑‍💼</div><div class="text-white font-bold">Manager</div><div>Activity များကိုသာ ကြည့်နိုင်ပါသည်။ Bonus / လစာ ငွေကြေး မပါပါ။</div><button type="button" class="px-5 py-3 bg-violet-600 rounded-xl font-bold text-white" onclick="kHubOpen(\'act\')">☰ Menu ဖွင့်မည်</button>';
+    var op = $('owner-portal-view'); op.parentNode.insertBefore(m, op); })();
+  var _kApR = applyRole; applyRole = function (r) { var mg = r === 'manager'; _kApR(mg ? 'owner' : r);
+    if (mg) { $('owner-portal-view').hidden = true; $('bottom-tab-bar').hidden = true; $('kmgr-home').hidden = false; $('role-badge').textContent = 'Manager'; } else $('kmgr-home').hidden = true; };
+  function kHubClose() { $('khub').hidden = true; }
+  function kHubOpen(tab) { if (!kauth || kdemo) return; $('khub').hidden = false; try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+    kHubTab(tab || (kHubCur && KTABS[kauth.role].indexOf(kHubCur) >= 0 ? kHubCur : KTABS[kauth.role][0])); }
+  function kHubTab(t) { if (KTABS[kauth.role].indexOf(t) < 0) t = KTABS[kauth.role][0]; kHubCur = t;
+    $('khub-tabs').innerHTML = KTABS[kauth.role].map(function (k) { return '<button type="button" class="khb ' + (k === t ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-300') + '" onclick="kHubTab(\'' + k + '\')">' + KTN[k] + '</button>'; }).join('');
+    var b = $('khub-body'); b.innerHTML = '<div class="text-center py-8"><span class="kspin"></span></div>';
+    kR[t]().then(function (h) { if (kHubCur !== t) return; b.innerHTML = h; if (kRA[t]) kRA[t](); }).catch(function (e) { if (kHubCur !== t) return; b.innerHTML = '<div class="text-red-400 p-3">' + esc((KMISS.indexOf(e.code) >= 0 || e.status === 404) ? 'v7.sql ကို Supabase မှာ Run ပါ' : (e.message || 'ဖတ်၍မရပါ — VPN စစ်ပါ')) + '</div>'; }); }
+
+  /* announcements */
+  kR.ann = async function () { var me = kWho(), post = kauth.role !== 'staff', a = await kapi('announcements?select=*&order=created_at.desc&limit=30');
+    var rd = a.length ? await kapi('ann_reads?select=ann_id,who&ann_id=in.(' + a.map(function (x) { return x.id; }).join(',') + ')') : [], by = {}; rd.forEach(function (r) { (by[r.ann_id] = by[r.ann_id] || []).push(r.who); });
+    var un = a.filter(function (x) { return (by[x.id] || []).indexOf(me) < 0; });
+    if (un.length) { kUp('ann_reads?on_conflict=ann_id,who', un.map(function (x) { return { ann_id: x.id, who: me }; })).catch(function () {}); un.forEach(function (x) { (by[x.id] = by[x.id] || []).push(me); }); kBadge(Math.max(0, kBadgeN - un.length)); }
+    var h = post ? kCard('<b class="text-white">ကြေညာချက်အသစ်</b><input id="kh-at" maxlength="60" placeholder="ခေါင်းစဉ်"><textarea id="kh-ab" rows="3" maxlength="300" placeholder="အကြောင်းအရာ (စာသားသာ)"></textarea>' + kBtn('bg-emerald-600', 'kH.postAnn()', 'ပို့မည်')) : '';
+    return h + (a.map(function (x) { var r = (by[x.id] || []).filter(function (w) { return w !== me; });
+      return kCard('<div class="flex justify-between"><b class="text-white text-sm">' + esc(x.title) + '</b>' + (post ? '<button type="button" class="text-red-400" onclick="kH.delAnn(\'' + x.id + '\')">✕</button>' : '') + '</div><div class="text-zinc-300 whitespace-pre-wrap">' + esc(x.body) + '</div><div class="text-[10px] text-zinc-500">' + esc(x.author || '') + ' · ' + kAgo(x.created_at) + (post ? ' · 👁 ဖတ်ပြီး ' + r.length + (r.length ? ': ' + esc(r.slice(0, 4).map(kNm).join(', ')) + (r.length > 4 ? ' +' + (r.length - 4) : '') : '') : '') + '</div>'); }).join('') || '<div class="text-zinc-500 p-3">ကြေညာချက် မရှိသေးပါ</div>'); };
+  kH.postAnn = async function () { var t = $('kh-at').value.trim(), b = $('kh-ab').value.trim(); if (!t || !b) return toast('ခေါင်းစဉ်/အကြောင်းအရာ ထည့်ပါ');
+    await kUp('announcements?on_conflict=id', { id: kId(), title: t.slice(0, 60), body: b.slice(0, 300), author: kauth.name }); toast('ပို့ပြီးပါပြီ ✓'); kHubTab('ann'); };
+  kH.delAnn = async function (id) { if (!confirm('ဖျက်မည်လား?')) return; await kapi('announcements?id=eq.' + kEnc(id), { method: 'DELETE' }); try { await kapi('ann_reads?ann_id=eq.' + kEnc(id), { method: 'DELETE' }); } catch (e) {} kHubTab('ann'); };
+
+  /* task assignment (text only, no photos) */
+  kR.task = async function () { var staff = kauth.role === 'staff', td = iso(new Date()), rows = await kapi('assignments?select=*&order=created_at.desc&limit=60' + (staff ? '&emp_id=eq.' + kEnc(kauth.emp) : ''));
+    rows = rows.filter(function (x) { return x.status !== 'done'; }).concat(rows.filter(function (x) { return x.status === 'done'; }));
+    var h = staff ? '' : kCard('<b class="text-white">တာဝန်အသစ် ပေးမည်</b><select id="kh-te">' + state.employees.filter(function (e) { return !e.resigned; }).map(function (e) { return '<option value="' + e.id + '">' + esc(e.name) + '</option>'; }).join('') + '</select><input id="kh-tt" maxlength="80" placeholder="တာဝန် ခေါင်းစဉ်"><textarea id="kh-td" rows="2" maxlength="200" placeholder="အသေးစိတ် (စာသားသာ)"></textarea><label>ပြီးရမည့်ရက်</label><input id="kh-tdue" type="date">' + kBtn('bg-emerald-600', 'kH.postTask()', 'ပေးမည်'));
+    return h + (rows.map(function (x) { var open = x.status !== 'done', late = open && x.due && x.due < td;
+      return kCard('<div class="flex justify-between"><b class="text-white text-sm">' + (open ? '📌 ' : '✅ ') + esc(x.title) + '</b>' + (staff ? '' : '<button type="button" class="text-red-400" onclick="kH.delTask(\'' + x.id + '\')">✕</button>') + '</div>' + (staff ? '' : '<div class="text-zinc-400">👤 ' + esc(x.emp_name) + '</div>') + (x.detail ? '<div class="text-zinc-300">' + esc(x.detail) + '</div>' : '') +
+        '<div class="' + (late ? 'text-red-400' : 'text-zinc-500') + '">' + (x.due ? 'ပြီးရမည့်ရက် ' + esc(x.due) : '') + (late ? ' · နောက်ကျနေပါပြီ' : '') + '</div>' +
+        (open && staff ? '<input id="kh-n-' + x.id + '" maxlength="200" placeholder="မှတ်ချက် (စာသားသာ)">' + kBtn('bg-emerald-600', 'kH.doneTask(\'' + x.id + '\')', '✓ ပြီးပါပြီ') : '') + (!open ? (x.note ? '<div class="text-zinc-400">📝 ' + esc(x.note) + '</div>' : '') + '<div class="text-[10px] text-zinc-500">ပြီးချိန် ' + kAgo(x.done_at) + '</div>' : '')); }).join('') || '<div class="text-zinc-500 p-3">တာဝန် မရှိသေးပါ</div>'); };
+  kH.postTask = async function () { var e = byId($('kh-te').value), t = $('kh-tt').value.trim(); if (!e || !t) return toast('ဝန်ထမ်းနှင့် ခေါင်းစဉ် ထည့်ပါ');
+    await kUp('assignments?on_conflict=id', { id: kId(), title: t.slice(0, 80), detail: $('kh-td').value.trim().slice(0, 200), emp_id: e.id, emp_name: e.name, due: $('kh-tdue').value || null, status: 'open', created_by: kauth.name }); toast('ပေးပြီးပါပြီ ✓'); kHubTab('task'); };
+  kH.doneTask = async function (id) { await kPatch('assignments?id=eq.' + kEnc(id), { status: 'done', note: ($('kh-n-' + id).value || '').trim().slice(0, 200), done_at: new Date().toISOString() }); toast('✓ ပြီးပါပြီ'); kHubTab('task'); };
+  kH.delTask = async function (id) { if (!confirm('ဖျက်မည်လား?')) return; await kapi('assignments?id=eq.' + kEnc(id), { method: 'DELETE' }); kHubTab('task'); };
+
+  /* leave requests */
+  kR.leave = async function () { var staff = kauth.role === 'staff', rows = await kapi('leaves?select=*&order=created_at.desc&limit=60' + (staff ? '&emp_id=eq.' + kEnc(kauth.emp) : ''));
+    var ST = { pending: '⏳ စောင့်ဆိုင်းဆဲ', approved: '✅ Approve', rejected: '❌ ငြင်းပယ်' };
+    rows = rows.filter(function (x) { return x.status === 'pending'; }).concat(rows.filter(function (x) { return x.status !== 'pending'; }));
+    var h = staff ? kCard('<b class="text-white">ခွင့်တောင်းမည်</b><select id="kh-lk"><option>နေမကောင်း</option><option>ကိုယ်ရေးကိုယ်တာ</option><option>အရေးပေါ်</option><option>တခြား</option></select><label>မှ</label><input id="kh-lf" type="date"><label>အထိ</label><input id="kh-lt" type="date"><textarea id="kh-lr" rows="2" maxlength="200" placeholder="အကြောင်းရင်း (စာသားသာ)"></textarea>' + kBtn('bg-emerald-600', 'kH.reqLeave()', 'တောင်းမည်')) : '';
+    return h + (rows.map(function (x) { return kCard('<div class="flex justify-between"><b class="text-white text-sm">' + (staff ? '' : esc(x.emp_name) + ' · ') + esc(x.kind) + '</b><span>' + (ST[x.status] || x.status) + '</span></div><div class="text-zinc-300">' + esc(x.date_from) + ' → ' + esc(x.date_to) + '</div>' + (x.reason ? '<div class="text-zinc-400">' + esc(x.reason) + '</div>' : '') +
+      (!staff && x.status === 'pending' ? '<div class="grid grid-cols-2 gap-2 pt-1">' + kBtn('bg-emerald-600', 'kH.decLeave(\'' + x.id + '\',\'approved\')', '✓ Approve') + kBtn('bg-zinc-700', 'kH.decLeave(\'' + x.id + '\',\'rejected\')', '✕ Reject') + '</div>' : (x.decided_by ? '<div class="text-[10px] text-zinc-500">' + esc(x.decided_by) + ' ဆုံးဖြတ်သည်</div>' : ''))); }).join('') || '<div class="text-zinc-500 p-3">ခွင့် မရှိသေးပါ</div>'); };
+  kH.reqLeave = async function () { var f = $('kh-lf').value, t = $('kh-lt').value || f; if (!f) return toast('ရက်စွဲ ထည့်ပါ'); if (t < f) return toast('ရက်စွဲ မှန်အောင် ထည့်ပါ');
+    await kUp('leaves?on_conflict=id', { id: kId(), emp_id: kauth.emp, emp_name: kauth.name, kind: $('kh-lk').value, date_from: f, date_to: t, reason: $('kh-lr').value.trim().slice(0, 200), status: 'pending' }); toast('တောင်းပြီးပါပြီ ✓'); kHubTab('leave'); };
+  kH.decLeave = async function (id, st) { await kPatch('leaves?id=eq.' + kEnc(id), { status: st, decided_by: kauth.name }); kHubTab('leave'); };
+
+  /* payslip (owner: anyone, staff: own; never manager) */
+  function kMonths(n) { var p = CUR.split('-'), y = +p[0], m = +p[1], o = []; for (var i = 0; i < n; i++) { o.push(y + '-' + ('0' + m).slice(-2)); if (--m < 1) { m = 12; y--; } } return o; }
+  kR.slip = async function () { var own = kauth.role === 'owner', emps = own ? state.employees : [byId(kauth.emp)].filter(Boolean);
+    return kCard('<b class="text-white">Payslip</b>' + (own ? '<select id="kh-se">' + emps.map(function (e) { return '<option value="' + e.id + '">' + esc(e.name) + '</option>'; }).join('') + '</select>' : '<div class="text-zinc-300">' + esc(emps[0] ? emps[0].name : '') + '</div><input type="hidden" id="kh-se" value="' + (emps[0] ? emps[0].id : '') + '">') +
+      '<select id="kh-sm">' + kMonths(6).map(function (m) { return '<option>' + m + '</option>'; }).join('') + '</select>' + kBtn('bg-blue-600', 'kH.slip()', 'ပြမည်')) + '<div id="kh-slip"></div>'; };
+  kH.slip = function () { var e = byId($('kh-se').value), m = $('kh-sm').value; if (!e) return; var c = payCalc(e, m);
+    kSlip = { title: 'Payslip · ' + m, sub: e.name + (e.role ? ' · ' + e.role : '') + (e.sno ? ' · ' + e.sno : ''), lines: [['Basic လစာ', kNum(c.basic)], ['Bonus', kNum(c.bonus)], ['တက်ရောက်ကြေး', kNum(c.att)], ['အချိန်တိကျကြေး', kNum(c.punct)], ['နောက်ကျ ဒဏ်ကြေး', '- ' + kNum(c.pen)], ['စုစုပေါင်း (ကျပ်)', kNum(c.total), 1], ['တက်ရောက်ရက် / နောက်ကျ', c.present + ' / ' + c.lc + ' ကြိမ်']] };
+    $('kh-slip').innerHTML = kCard('<b class="text-white">' + esc(kSlip.title) + '</b><div class="text-zinc-400">' + esc(kSlip.sub) + '</div>' + kSlip.lines.map(function (l) { return '<div class="flex justify-between ' + (l[2] ? 'text-white font-bold text-sm pt-1' : 'text-zinc-300') + '"><span>' + esc(l[0]) + '</span><span>' + esc(l[1]) + '</span></div>'; }).join('') + kBtn('bg-violet-600', 'kH.slipImg()', '🖼 ပုံအဖြစ် သိမ်း / ပို့မည်') + '<div id="kh-slipimg"></div>'); };
+  function kShareFile(file, title, fallbackEl, dataUrl) { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: title }).catch(function () {}); return; }
+    var u = URL.createObjectURL(file), a = document.createElement('a'); a.href = u; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+    if (fallbackEl && dataUrl) fallbackEl.innerHTML = '<img src="' + dataUrl + '" style="width:100%;border-radius:8px;margin-top:6px"><div class="text-zinc-400 text-[10px]">ပုံကို ဖိနှိပ်ပြီး သိမ်းနိုင်ပါသည်</div>'; }
+  kH.slipImg = function () { var d = kSlip; if (!d) return; var c = document.createElement('canvas'); c.width = 640; c.height = 150 + d.lines.length * 46 + 30; var g = c.getContext('2d'), F = '"Noto Sans Myanmar",sans-serif';
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#111'; g.font = 'bold 28px ' + F; g.fillText(d.title, 28, 52); g.font = '20px ' + F; g.fillStyle = '#555'; g.fillText(d.sub, 28, 86);
+    var y = 140; d.lines.forEach(function (l) { g.font = (l[2] ? 'bold ' : '') + '22px ' + F; g.fillStyle = '#111'; g.textAlign = 'left'; g.fillText(l[0], 28, y); g.textAlign = 'right'; g.fillText(l[1], c.width - 28, y); y += 46; g.strokeStyle = '#ddd'; g.beginPath(); g.moveTo(28, y - 32); g.lineTo(c.width - 28, y - 32); g.stroke(); });
+    c.toBlob(function (b) { kShareFile(new File([b], 'payslip.png', { type: 'image/png' }), d.title, $('kh-slipimg'), c.toDataURL('image/png')); }); };
+
+  /* activity (manager + owner): attendance today + task progress, no bonus money */
+  kR.act = async function () { if (!kck || !kck.length) { try { await ckLoad(); } catch (e) {} } var today = iso(new Date()), P = PAY(), emps = state.employees.filter(function (e) { return !e.resigned; });
+    var h = kCard('<b class="text-white">📍 ဒီနေ့ တက်ရောက်မှု</b>' + (emps.map(function (e) { var c = kck.filter(function (x) { return x.empId === e.id && x.date === today; })[0], st = (e.start || P.start).split(':'), mins = c ? (+c.time.split(':')[0]) * 60 + (+c.time.split(':')[1]) - ((+st[0]) * 60 + (+st[1])) : 0;
+      return '<div class="flex justify-between"><span class="text-zinc-200">' + esc(e.name) + '</span><span class="' + (c ? (mins > P.grace ? 'text-amber-400' : 'text-emerald-400') : 'text-zinc-500') + '">' + (c ? esc(c.time) + (mins > P.grace ? ' (နောက်ကျ ' + mins + ' မိနစ်)' : ' ✓') : 'မရောက်သေး') + '</span></div>'; }).join('') || '<div class="text-zinc-500">ဝန်ထမ်း မရှိသေးပါ</div>'));
+    return h + emps.map(function (e) { var body = ''; try { body = tgtList(e).map(function (t) { return bar(esc(t.n), kNum(t.mo) + ' / ' + kNum(t.m) + ' ' + esc(t.u), t.m ? t.mo / t.m * 100 : 0); }).join(''); } catch (x) {}
+      return kCard('<b class="text-white">' + esc(e.name) + '</b> <span class="text-zinc-500">' + esc(e.role || '') + '</span>' + body); }).join(''); };
+
+  /* backup (owner): daily auto snapshot in Supabase (no photos), keep 14 days */
+  async function kBackupNow() { var d = JSON.parse(JSON.stringify(payload())), id = 'bk-' + iso(new Date()); await kUp('app_backups?on_conflict=id', { id: id, data: d, created_at: new Date().toISOString() });
+    try { localStorage.setItem('kpi_bkday', iso(new Date())); } catch (e) {} try { await kapi('app_backups?id=lt.bk-' + iso(new Date(Date.now() - 14 * 864e5)), { method: 'DELETE' }); } catch (e) {} }
+  function kBackupAuto() { var t = iso(new Date()), last = null; try { last = localStorage.getItem('kpi_bkday'); } catch (e) {} if (last !== t && state.employees.length) kBackupNow().catch(function () {}); }
+  kR.bk = async function () { var rows = await kapi('app_backups?select=id,created_at&order=id.desc&limit=20');
+    return kCard('<b class="text-white">💾 Backup</b><div class="text-zinc-400">တစ်နေ့တစ်ကြိမ် အလိုအလျောက် သိမ်းပြီး ၁၄ ရက်ထိ ထားပါသည်။ ဓာတ်ပုံ မပါပါ (နေရာမပြည့်စေရန်)။</div>' + kBtn('bg-emerald-600', 'kH.bkNow()', 'ယခု Backup လုပ်မည်')) +
+      (rows.map(function (r) { return kCard('<div class="flex justify-between items-center"><span class="text-zinc-200">' + esc(r.id.replace('bk-', '')) + '</span><span><button type="button" class="text-blue-400 px-2" onclick="kH.bkFile(\'' + r.id + '\')">ဖိုင်</button><button type="button" class="text-amber-400 px-2" onclick="kH.bkRestore(\'' + r.id + '\')">ပြန်ယူမည်</button></span></div>'); }).join('') || '<div class="text-zinc-500 p-3">Backup မရှိသေးပါ</div>'); };
+  kH.bkNow = async function () { try { await kBackupNow(); toast('Backup ပြီးပါပြီ ✓'); kHubTab('bk'); } catch (e) { toast('မအောင်မြင်ပါ: ' + (e.message || e)); } };
+  kH.bkFile = async function (id) { var r = await kapi('app_backups?id=eq.' + kEnc(id) + '&select=data'); if (!r[0]) return; var f = new File([JSON.stringify(r[0].data)], 'bonusbook-' + id + '.json', { type: 'application/json' }); kShareFile(f, id, null, null); };
+  kH.bkRestore = async function (id) { if (!confirm(id.replace('bk-', '') + ' Backup ကို ပြန်ယူမည်လား? ယခု data ကို အစားထိုးမည်။')) return;
+    var r = await kapi('app_backups?id=eq.' + kEnc(id) + '&select=data'); if (!r[0]) return; var d = r[0].data; d.rev = Date.now(); applyRemote(d); persist(); await new Promise(function (res) { pushNow(res); }); toast('ပြန်ယူပြီးပါပြီ ✓'); };
+
+  /* managers (owner creates; they see Activity only, never bonus/salary) */
+  kR.mgr = async function () { var rows = await kapi('profiles?select=*&role=eq.manager');
+    return kCard('<b class="text-white">Manager အကောင့်အသစ်</b><div class="text-zinc-400">Manager က Activity ကိုသာ ကြည့်နိုင်ပြီး Bonus/လစာ မမြင်ရပါ။</div><input id="kh-mi" maxlength="20" placeholder="Login ID (a-z, 0-9)"><input id="kh-mn" maxlength="40" placeholder="အမည်"><input id="kh-mp" type="text" placeholder="Password (၆လုံးအထက်)">' + kBtn('bg-emerald-600', 'kH.mkMgr()', 'ဖန်တီးမည်')) +
+      (rows.map(function (r) { return kCard('<div class="flex justify-between"><span class="text-zinc-200">' + esc(r.name) + ' <span class="text-zinc-500">(' + esc(r.login) + ')</span></span><button type="button" class="text-red-400" onclick="kH.delMgr(\'' + r.user_id + '\')">ဖယ်မည်</button></div>'); }).join('')); };
+  kH.mkMgr = async function () { var id = $('kh-mi').value.trim().toLowerCase(), nm = $('kh-mn').value.trim(), pw = $('kh-mp').value; if (!/^[a-z0-9._-]{3,20}$/.test(id)) return toast('Login ID: a-z / 0-9 ၃-၂၀ လုံး'); if (!nm || pw.length < 6) return toast('အမည်နှင့် Password (၆လုံးအထက်) ထည့်ပါ');
+    try { var j = await kAuth('signup', { email: id + '@' + KDOM, password: pw }); if (!j.access_token) throw new Error('Email confirmation ကို ပိတ်ပါ');
+      await kapi('profiles', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: j.user.id, role: 'manager', name: nm, login: id }) }); alert('Manager ဖန်တီးပြီး\nLogin ID: ' + id + '\nPassword: ' + pw); kHubTab('mgr'); } catch (e) { toast('မအောင်မြင်ပါ: ' + (e.message || e)); } };
+  kH.delMgr = async function (uid) { if (!confirm('Manager ကို ဖယ်မည်လား?')) return; await kapi('profiles?user_id=eq.' + kEnc(uid), { method: 'DELETE' }); kHubTab('mgr'); };
+
+  /* account: Login ID / password, re-login on a new phone */
+  kR.acct = async function () { var lg = kget('kpi_login') || '—', pw = kget('kpi_pw') || '', sn = kget('kpi_staffno');
+    return kCard('<b class="text-white">အကောင့်</b><div>အမည်: ' + esc(kauth.name) + '</div>' + (sn ? '<div>Staff ID: ' + esc(sn) + '</div>' : '') + '<div>Login ID: <b class="text-white">' + esc(lg) + '</b></div><div>Password: <span id="kh-pw" class="text-white">' + (pw ? '••••••••' : '—') + '</span> ' + (pw ? '<button type="button" class="text-blue-400" onclick="kH.showPw()">ပြမည်</button>' : '') + '</div>') +
+      kCard('<b class="text-white">Password ပြောင်းမည်</b><input id="kh-np" type="password" placeholder="Password အသစ် (၆လုံးအထက်)">' + kBtn('bg-blue-600', 'kH.chPw()', 'ပြောင်းမည်') + '<div class="text-zinc-500">ဖုန်းအသစ်မှာ Login ID + Password ထည့်ပြီး "ID နဲ့ ဝင်မည်" ကိုနှိပ်ပါ။ Password မေ့ရင် Owner ကို Reset တောင်းပါ။</div>'); };
+  kH.showPw = function () { $('kh-pw').textContent = kget('kpi_pw') || '—'; };
+  kH.chPw = async function () { var np = $('kh-np').value; if (np.length < 6) return toast('Password ၆လုံးအထက် ထည့်ပါ');
+    try { await kens(); var r = await fetch(kcfg.url + '/auth/v1/user', { method: 'PUT', headers: { apikey: kcfg.key, Authorization: 'Bearer ' + kauth.access, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: np }) }); if (!r.ok) { var j = {}; try { j = await r.json(); } catch (x) {} throw new Error(j.msg || j.message || 'Error ' + r.status); }
+      kset('kpi_pw', np); toast('Password ပြောင်းပြီးပါပြီ ✓'); kHubTab('acct'); } catch (e) { toast('မအောင်မြင်ပါ: ' + (e.message || e)); } };
+
+  /* readable staff logins (Login ID = Staff No.) + profile row so ID login works on any phone */
+  async function kStaffCred(id) {
+    var r = await kapi('staff_logins?emp_id=eq.' + encodeURIComponent(id) + '&select=email,pass'); if (r && r[0]) return r[0];
+    var e = byId(id), base = e && e.sno ? String(e.sno).toLowerCase().replace(/[^a-z0-9]/g, '') : '', pass = krand(8), email, j;
+    for (var t = 0; t < 3; t++) { email = ((base && t === 0) ? base : (base || 's') + krand(4).toLowerCase()) + '@' + KDOM;
+      try { j = await kAuth('signup', { email: email, password: pass }); if (j && j.access_token) break; } catch (er) { if (t === 2) throw er; } }
+    if (!j || !j.access_token) throw new Error('Email confirmation ကို ပိတ်ပါ');
+    await kapi('staff_logins', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ emp_id: id, email: email, pass: pass, user_id: j.user.id }) });
+    try { await kapi('profiles', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: j.user.id, role: 'staff', emp_id: id, name: e ? e.name : '', login: email.split('@')[0] }) }); } catch (er) {}
+    return { email: email, pass: pass }; }
+  async function kStaffReset(id) { var e = byId(id); if (!e) return; if (!confirm(e.name + ' ၏ Login အသစ် ဖန်တီးမည်လား? Password အသစ် ထွက်လာမည်။')) return; if (!e.sno) { e.sno = kReqNextNo(); persist(); }
+    try { try { await kapi('staff_logins?emp_id=eq.' + kEnc(id), { method: 'DELETE' }); await kapi('profiles?emp_id=eq.' + kEnc(id), { method: 'DELETE' }); } catch (x) {} var c = await kStaffCred(id); alert('Login ID: ' + c.email.split('@')[0] + '\nPassword: ' + c.pass + '\n\nဝန်ထမ်းကို ပေးပါ။ "ID နဲ့ ဝင်မည်" ဖြင့် ဝင်ရမည်။'); } catch (er) { toast('မအောင်မြင်ပါ: ' + (er.message || er)); } }
+  var _kEE = kEmpEdit; kEmpEdit = function (id) { _kEE(id); var o = $('kpedit'); if (!o) return; var b = document.createElement('button'); b.type = 'button'; b.className = 'w-full mt-2 py-3 border border-violet-700 rounded-xl font-bold text-violet-300'; b.textContent = '🔑 Login / Password Reset'; b.onclick = function () { kStaffReset(id); }; o.querySelector('#kp-del').before(b); };
+
+  /* Login ID + Password (staff / manager) */
+  async function kIdLogin() { var id = $('ke').value.trim().toLowerCase(), pw = $('kp').value; kErr(''); if (!id || pw.length < 6) return kErr('Login ID နှင့် Password ထည့်ပါ');
+    kcfg = { url: KDEF.url, key: KDEF.key }; var em = id.indexOf('@') > 0 ? id : id + '@' + KDOM;
+    try { var j = await kAuth('token?grant_type=password', { email: em, password: pw }); kauth = kMk(j, 'staff', {}); var p = await kapi('profiles?select=*&user_id=eq.' + j.user.id);
+      if (!p.length || p[0].role === 'owner') { kauth = null; return kErr('ဤ ID အတွက် Profile မရှိပါ — Owner က Reset လုပ်ပေးရန် လိုပါသည် (Owner ဆိုရင် Connect & Login ကိုသုံးပါ)'); }
+      kauth.role = p[0].role; kauth.name = p[0].name || id; if (p[0].role === 'staff') kauth.emp = p[0].emp_id;
+      kset('kpi_cfg', kcfg); kset('kpi_auth', kauth); kset('kpi_login', em.split('@')[0]); kset('kpi_pw', pw); await kEnter(); } catch (e) { kauth = null; kErr(e.message || 'ချိတ်ဆက်၍မရပါ'); } }
+  (function () { var cb = [].filter.call(document.querySelectorAll('#kgate button'), function (b) { return /Connect & Login/.test(b.textContent); })[0]; if (!cb) return;
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'w-full py-3 mt-2 bg-violet-700 rounded-xl font-bold text-white text-sm'; b.textContent = '🔑 ID နဲ့ ဝင်မည် (Staff / Manager)'; b.onclick = kIdLogin; cb.after(b);
+    var t = document.createElement('div'); t.className = 'text-[10px] text-zinc-500 mt-1'; t.textContent = 'Staff/Manager က Email နေရာမှာ Login ID ရိုက်ပါ။ Owner က Email ဖြင့် Connect & Login ကို သုံးပါ။'; b.after(t); })();
+
+  /* only the owner writes app_state (staff/manager phones can no longer overwrite it) + retry when a push failed */
+  var _kPN = pushNow; pushNow = function (cb) { if (!kauth || kauth.role !== 'owner') { if (cb) cb(true); return; } var rv = state.rev; _kPN(function (ok) { kDirty = !ok; if (ok) kRemoteRev = Number(rv) || kRemoteRev; if (cb) cb(ok); }); };
+
+  /* offline queue for text posts (announcements / reads / leaves / assignments) */
+  var _kapi0 = kapi, kQ = []; try { kQ = JSON.parse(localStorage.getItem('kpi_q')) || []; } catch (e) {}
+  function kNetErr(e) { return e instanceof TypeError || /fetch|network|load failed/i.test((e && e.message) || ''); }
+  function kQSave() { try { localStorage.setItem('kpi_q', JSON.stringify(kQ)); } catch (e) {} }
+  kapi = async function (path, opt) { try { return await _kapi0(path, opt); } catch (e) { var m = ((opt && opt.method) || 'GET').toUpperCase();
+    if (m !== 'GET' && kNetErr(e) && /^(announcements|ann_reads|leaves|assignments)\b/.test(path)) { kQ.push({ path: path, opt: opt }); kQSave(); toast('Offline — ပြန်ချိတ်ရင် အလိုအလျောက် ပို့ပါမည်'); return []; } throw e; } };
+  async function kFlush() { if (!kQ.length || kFlushing) return; kFlushing = true; try { while (kQ.length) { try { await _kapi0(kQ[0].path, kQ[0].opt); } catch (e) { if (kNetErr(e)) break; } kQ.shift(); kQSave(); } } catch (e) {} kFlushing = false; }
+
+  /* notifications: toast + vibrate + system notification when the app is in the background */
+  var kNS = {}; try { kNS = JSON.parse(localStorage.getItem('kpi_nseen')) || {}; } catch (e) {}
+  function kNSave() { try { var k = Object.keys(kNS); if (k.length > 150) k.slice(0, k.length - 150).forEach(function (x) { delete kNS[x]; }); localStorage.setItem('kpi_nseen', JSON.stringify(kNS)); } catch (e) {} }
+  function kPing(title, body) { toast('🔔 ' + title + (body ? ' — ' + body : '')); try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {} try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '' }); } catch (e) {} }
+  function kBadge(n) { var el = $('khubn'); if (n === undefined) n = kBadgeN; kBadgeN = n; el.textContent = n > 99 ? '99+' : n; el.style.display = n ? 'block' : 'none'; }
+  async function kNotif() { var me = kWho(), n = 0, first = !kNS.__init, a = await kapi('announcements?select=id,title,author&order=created_at.desc&limit=20'), rs = {};
+    if (a.length) (await kapi('ann_reads?select=ann_id&who=eq.' + kEnc(me) + '&ann_id=in.(' + a.map(function (x) { return x.id; }).join(',') + ')')).forEach(function (r) { rs[r.ann_id] = 1; });
+    a.forEach(function (x) { if (!rs[x.id]) { n++; if (!kNS['a' + x.id]) { kNS['a' + x.id] = 1; if (!first) kPing('📢 ' + x.title, x.author); } } });
+    if (kauth.role === 'staff') { (await kapi('assignments?select=id,title&status=eq.open&emp_id=eq.' + kEnc(kauth.emp))).forEach(function (x) { n++; if (!kNS['t' + x.id]) { kNS['t' + x.id] = 1; if (!first) kPing('📌 တာဝန်အသစ်', x.title); } });
+      (await kapi('leaves?select=id,status&status=neq.pending&emp_id=eq.' + kEnc(kauth.emp) + '&order=created_at.desc&limit=10')).forEach(function (x) { if (!kNS['l' + x.id + x.status]) { kNS['l' + x.id + x.status] = 1; if (!first) kPing(x.status === 'approved' ? '✅ ခွင့် Approve ပြီး' : '❌ ခွင့် ငြင်းပယ်ခံရ', ''); } }); }
+    else (await kapi('leaves?select=id,emp_name&status=eq.pending')).forEach(function (x) { n++; if (!kNS['p' + x.id]) { kNS['p' + x.id] = 1; if (!first) kPing('🏖 ခွင့်တောင်းခံရန်', x.emp_name); } });
+    kNS.__init = 1; kNSave(); kBadge(n); }
+  setInterval(async function () { if (!kauth || kdemo || document.hidden) return; $('khubfab').hidden = false; try { await kFlush(); } catch (e) {} if (kauth.role === 'owner') { if (kDirty && !kBusyPush()) pushNow(); kBackupAuto(); } try { await kNotif(); } catch (e) {} }, 6000);
 </script>
 
 </body></html>
